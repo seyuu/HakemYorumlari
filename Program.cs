@@ -7,9 +7,21 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
-// Entity Framework
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Entity Framework - Production için özel yapılandırma
+if (builder.Environment.IsProduction())
+{
+    var connectionString = Environment.GetEnvironmentVariable("SQL_CONNECTION_STRING")
+        ?? builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? "Server=94.73.151.19;Database=u7401826_hakem;User Id=u7401826_hakem;Password=zdv@4-B8j.X3:I3R;TrustServerCertificate=true;MultipleActiveResultSets=true;";
+    
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlServer(connectionString));
+}
+else
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+}
 
 // HttpClient ekle
 builder.Services.AddHttpClient();
