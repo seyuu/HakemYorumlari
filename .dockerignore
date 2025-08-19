@@ -1,0 +1,13 @@
+Dockerfile*
+.dockerignore
+.git
+.gitignore
+.vs
+.vscode
+*/bin
+*/obj
+**/.toolstarget
+.env
+README.md
+app.yaml
+%TEMP%

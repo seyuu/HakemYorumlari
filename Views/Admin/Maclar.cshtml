@@ -1,0 +1,335 @@
+@model IEnumerable<HakemYorumlari.Models.Mac>
+
+@{
+    ViewData["Title"] = "Maçlar";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+        border-radius: 0.2rem;
+        min-width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .d-flex.gap-1 > * {
+        margin: 0.125rem;
+    }
+    
+    .table td {
+        vertical-align: middle;
+    }
+    
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.35em 0.65em;
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h4><i class="fas fa-futbol"></i> Maç Yönetimi - @ViewBag.SecilenHafta. Hafta</h4>
+                    <div>
+                        <a asp-action="MacEkle" class="btn btn-light">
+                            <i class="fas fa-plus"></i> Yeni Maç Ekle
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (TempData["Success"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            @TempData["Success"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+                    @if (TempData["Error"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            @TempData["Error"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+                    @if (TempData["Warning"] != null)
+                    {
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                            @TempData["Warning"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <!-- Hafta Seçici ve Toplu İşlemler -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="haftaSecici" class="form-label"><strong>Hafta Seçin:</strong></label>
+                            <select id="haftaSecici" class="form-select" onchange="haftaSecildi()">
+                                @foreach (var hafta in ViewBag.TumHaftalar)
+                                {
+                                    <option value="@hafta" selected="@(hafta == ViewBag.SecilenHafta)">
+                                        @hafta. Hafta @(hafta == ViewBag.MevcutHafta ? "(Mevcut)" : "")
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-8 d-flex align-items-end gap-2">
+                            <!-- Hafta Bazlı Toplu Skor Çek -->
+                            <form asp-action="HaftaTopluSkorCek" method="post" style="display:inline;" onsubmit="return confirm('@ViewBag.SecilenHafta. haftanın maç skorları TFF\'den çekilecek. Bu işlem uzun sürebilir. Devam etmek istiyor musunuz?')">
+                                <input type="hidden" name="hafta" value="@ViewBag.SecilenHafta" />
+                                <button type="submit" class="btn btn-warning" title="Seçilen haftanın tüm maçları için gerçek skorları TFF'den çeker">
+                                    <i class="fas fa-download"></i> Bu Hafta Skor Çek
+                                </button>
+                            </form>
+                            
+                            <!-- Hafta Bazlı Toplu Yorum Topla -->
+                            <form asp-action="HaftaTopluYorumTopla" method="post" style="display:inline;" onsubmit="return confirm('@ViewBag.SecilenHafta. haftanın maç yorumları toplanacak. Bu işlem uzun sürebilir. Devam etmek istiyor musunuz?')">
+                                <input type="hidden" name="hafta" value="@ViewBag.SecilenHafta" />
+                                <button type="submit" class="btn btn-info" title="Seçilen haftanın tüm maçları için hakem yorumlarını toplar">
+                                    <i class="fas fa-comments"></i> Bu Hafta Yorum Topla
+                                </button>
+                            </form>
+                            
+                            <!-- Tüm Maçlar için Toplu Skor Çek -->
+                            <form asp-action="TopluSkorCek" method="post" style="display:inline;" onsubmit="return confirm('TÜM geçmiş maçların skorları TFF\'den çekilecek. Bu işlem çok uzun sürebilir. Devam etmek istiyor musunuz?')">
+                                <button type="submit" class="btn btn-outline-warning" title="Tüm geçmiş maçlar için gerçek skorları TFF'den çeker">
+                                    <i class="fas fa-download"></i> Tüm Skorları Çek
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Buton Açıklamaları -->
+                    <div class="alert alert-info mb-3">
+                        <h6><i class="fas fa-info-circle"></i> İşlem Butonları Açıklaması:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small>
+                                    <span class="badge bg-warning text-dark me-1">Düzenle</span> <strong>Düzenle:</strong> Maç bilgilerini manuel olarak düzenle<br>
+                                    <span class="badge bg-info text-white me-1">Skor Çek</span> <strong>Skor Çek:</strong> Bu maç için gerçek skoru TFF'den çek<br>
+                                    <span class="badge bg-secondary text-white me-1">Durum</span> <strong>Durum:</strong> Maç durumunu manuel olarak değiştir<br>
+                                    <span class="badge bg-success text-white me-1">Yorum Topla</span> <strong>Yorum Topla:</strong> Bu maç için hakem yorumlarını topla<br>
+                                </small>
+                            </div>
+                            <div class="col-md-6">
+                                <small>
+                                    <span class="badge bg-info text-white me-1">Otomatik Pozisyon</span> <strong>Otomatik Pozisyon:</strong> Yorumlardan pozisyonları otomatik tespit et (Penaltı, Kart, Ofsayt, Tartışmalı vs.)<br>
+                                    <span class="badge bg-success text-white me-1">Otomatik</span> <strong>Otomatik:</strong> Otomatik yorum toplamayı aç/kapat<br>
+                                    <span class="badge bg-danger text-white me-1">Sil</span> <strong>Sil:</strong> Maçı sistemden tamamen sil<br>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Ev Sahibi</th>
+                                    <th>Deplasman</th>
+                                    <th>Skor</th>
+                                    <th>Durum</th>
+                                    <th>Tarih</th>
+                                    <th>Lig</th>
+                                    <th>Hafta</th>
+                                    <th>İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model)
+                                {
+                                    <tr>
+                                        <td>@item.Id</td>
+                                        <td>@item.EvSahibi</td>
+                                        <td>@item.Deplasman</td>
+                                        <td>
+                                            @if (item.Skor == "-" || string.IsNullOrEmpty(item.Skor))
+                                            {
+                                                <span class="badge bg-secondary" title="Skor henüz belirlenmedi">
+                                                    Skor Yok
+                                                </span>
+                                            }
+                                            else if (item.Skor.Contains("0-3") || item.Skor.Contains("3-0") || item.Skor.Contains("1-2") || item.Skor.Contains("2-1"))
+                                            {
+                                                <span class="badge bg-warning text-dark" title="Bu skor otomatik atanmış olabilir - Gerçek skoru çekmek için skor çek butonunu kullanın">
+                                                    @item.Skor ⚠️
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-primary" title="Gerçek skor">
+                                                    @item.Skor
+                                                </span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <span class="badge @(item.Durum switch {
+                                                MacDurumu.Bekliyor => "bg-secondary",
+                                                MacDurumu.Oynaniyor => "bg-warning",
+                                                MacDurumu.Bitti => "bg-success",
+                                                MacDurumu.Ertelendi => "bg-danger",
+                                                _ => "bg-secondary"
+                                            })">
+                                                @item.Durum
+                                            </span>
+                                        </td>
+                                        <td>@item.MacTarihi.ToString("dd.MM.yyyy HH:mm")</td>
+                                        <td>@item.Liga</td>
+                                        <td>@item.Hafta</td>
+                                        <td>
+                                            <div class="d-flex gap-1 flex-wrap">
+                                                <!-- Düzenle Butonu -->
+                                                <a asp-action="MacDuzenle" asp-route-id="@item.Id" class="btn btn-warning btn-sm" title="Maç bilgilerini düzenle">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                
+                                                <!-- Skor Çek Butonu -->
+                                                <form asp-action="SkorCek" method="post" style="display:inline;">
+                                                    <input type="hidden" name="macId" value="@item.Id" />
+                                                    <button type="submit" class="btn btn-info btn-sm" title="Bu maç için gerçek skoru TFF'den çek">
+                                                        <i class="fas fa-download"></i>
+                                                    </button>
+                                                </form>
+                                                
+                                                <!-- Durum Değiştirme Dropdown -->
+                                                <div class="dropdown d-inline-block">
+                                                    <button type="button" class="btn btn-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="Maç durumunu değiştir">
+                                                        <i class="fas fa-cog"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu">
+                                                        <li>
+                                                            <form asp-action="MacDurumGuncelle" method="post" style="display:inline;">
+                                                                <input type="hidden" name="macId" value="@item.Id" />
+                                                                <input type="hidden" name="yeniDurum" value="@((int)MacDurumu.Bekliyor)" />
+                                                                <button type="submit" class="dropdown-item">🕐 Bekliyor</button>
+                                                            </form>
+                                                        </li>
+                                                        <li>
+                                                            <form asp-action="MacDurumGuncelle" method="post" style="display:inline;">
+                                                                <input type="hidden" name="macId" value="@item.Id" />
+                                                                <input type="hidden" name="yeniDurum" value="@((int)MacDurumu.Oynaniyor)" />
+                                                                <button type="submit" class="dropdown-item">⚽ Oynanıyor</button>
+                                                            </form>
+                                                        </li>
+                                                        <li>
+                                                            <form asp-action="MacDurumGuncelle" method="post" style="display:inline;">
+                                                                <input type="hidden" name="macId" value="@item.Id" />
+                                                                <input type="hidden" name="yeniDurum" value="@((int)MacDurumu.Bitti)" />
+                                                                <button type="submit" class="dropdown-item">✅ Bitti</button>
+                                                            </form>
+                                                        </li>
+                                                        <li>
+                                                            <form asp-action="MacDurumGuncelle" method="post" style="display:inline;">
+                                                                <input type="hidden" name="macId" value="@item.Id" />
+                                                                <input type="hidden" name="yeniDurum" value="@((int)MacDurumu.Ertelendi)" />
+                                                                <button type="submit" class="dropdown-item">❌ Ertelendi</button>
+                                                            </form>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                                
+                                                <!-- Manuel Yorum Toplama Butonu -->
+                                                <form asp-action="YorumTopla" method="post" style="display:inline;" onsubmit="return confirm('Bu maç için hakem yorumları toplanacak. Devam etmek istiyor musunuz?')">
+                                                    <input type="hidden" name="macId" value="@item.Id" />
+                                                    <button type="submit" class="btn btn-success btn-sm" title="Bu maç için hakem yorumlarını topla">
+                                                        <i class="fas fa-comments"></i>
+                                                    </button>
+                                                </form>
+                                                
+                                                <!-- Otomatik Pozisyon Tespit Butonu -->
+                                                <form asp-action="OtomatikPozisyonTespit" method="post" style="display:inline;" onsubmit="return confirm('Bu maç için yorumlardan otomatik pozisyon tespiti yapılacak. Devam etmek istiyor musunuz?')">
+                                                    <input type="hidden" name="macId" value="@item.Id" />
+                                                    <button type="submit" class="btn btn-info btn-sm" title="Yorumlardan pozisyonları otomatik tespit et">
+                                                        <i class="fas fa-magic"></i>
+                                                    </button>
+                                                </form>
+                                                
+                                                <!-- Otomatik Toplama Toggle Butonu -->
+                                                <form asp-action="OtomatikYorumToplamaToggle" method="post" style="display:inline;">
+                                                    <input type="hidden" name="macId" value="@item.Id" />
+                                                    <button type="submit" class="btn @(item.OtomatikYorumToplamaAktif ? "btn-success" : "btn-outline-secondary") btn-sm" title="@(item.OtomatikYorumToplamaAktif ? "Otomatik yorum toplama AÇIK - Kapatmak için tıklayın" : "Otomatik yorum toplama KAPALI - Açmak için tıklayın")">
+                                                        <i class="fas @(item.OtomatikYorumToplamaAktif ? "fa-toggle-on" : "fa-toggle-off")"></i>
+                                                    </button>
+                                                </form>
+                                                
+                                                <!-- YouTube Linkten Yorum Ekle Formu -->
+                                                <form asp-action="YouTubeLinktenYorumTopla" method="post" class="d-flex align-items-center" style="gap:6px;">
+                                                    <input type="hidden" name="macId" value="@item.Id" />
+                                                    <input type="hidden" name="hafta" value="@ViewBag.SecilenHafta" />
+                                                    <input type="url" name="youtubeUrl" class="form-control form-control-sm" placeholder="YouTube linki yapıştır" style="max-width: 220px;" required />
+                                                    <button type="submit" class="btn btn-outline-success btn-sm" title="Verilen YouTube linkinden bu maça yorum ekle">
+                                                        <i class="fab fa-youtube"></i>
+                                                    </button>
+                                                </form>
+                                                
+                                                <!-- YouTube Transcript'ten Pozisyon Ekle Butonu -->
+                                                <form asp-action="YouTubeTranscripttenPozisyonEkle" method="post" class="d-flex align-items-center" style="gap:6px;">
+                                                    <input type="hidden" name="macId" value="@item.Id" />
+                                                    <input type="hidden" name="hafta" value="@ViewBag.SecilenHafta" />
+                                                    <input type="url" name="youtubeUrl" class="form-control form-control-sm" placeholder="YouTube linki yapıştır" style="max-width: 220px;" required />
+                                                    <button type="submit" class="btn btn-outline-info btn-sm" title="YouTube transcript'ten pozisyonları otomatik tespit et ve ekle">
+                                                        <i class="fas fa-closed-captioning"></i>
+                                                    </button>
+                                                </form>
+                                                
+                                                <!-- Sil Butonu -->
+                                                <form asp-action="MacSil" method="post" style="display:inline;" onsubmit="return confirm('Bu maçı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!')">
+                                                    <input type="hidden" name="id" value="@item.Id" />
+                                                    <button type="submit" class="btn btn-danger btn-sm" title="Bu maçı sistemden tamamen sil">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function haftaSecildi() {
+    var seciliHafta = document.getElementById('haftaSecici').value;
+    window.location.href = '@Url.Action("Maclar", "Admin")' + '?hafta=' + seciliHafta;
+}
+
+        function yorumTopla(macId) {
+            if (confirm('Bu maç için yorum toplamaya başlamak istediğinizden emin misiniz?')) {
+                $.post('/Admin/YorumTopla', { macId: macId })
+                    .done(function(result) {
+                        if (result.success) {
+                            alert('Yorum toplama başlatıldı!');
+                            location.reload();
+                        } else {
+                            alert('Hata: ' + result.message);
+                        }
+                    })
+                    .fail(function() {
+                        alert('Yorum toplama sırasında bir hata oluştu.');
+                    });
+            }
+        }
+
+        function otomatikPozisyonTespit(macId) {
+            if (confirm('Bu maç için otomatik pozisyon tespiti yapmak istediğinizden emin misiniz? Yorumlardan pozisyonlar otomatik çıkarılacak.')) {
+                // Form oluştur ve submit et
+                var form = $('<form method="post" action="/Admin/OtomatikPozisyonTespit">');
+                form.append('<input type="hidden" name="macId" value="' + macId + '">');
+                form.append('<input type="hidden" name="__RequestVerificationToken" value="' + $('input[name="__RequestVerificationToken"]').val() + '">');
+                $('body').append(form);
+                form.submit();
+            }
+        }
+</script>
