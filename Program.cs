@@ -39,12 +39,45 @@ builder.Services.AddHostedService<MacTakipBackgroundService>();
 
 var app = builder.Build();
 
+// Veritabanı migration'larını otomatik uygula
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    try
+    {
+        context.Database.Migrate();
+        app.Logger.LogInformation("Veritabanı migration'ları başarıyla uygulandı");
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Veritabanı migration hatası");
+    }
+}
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
+else
+{
+    app.UseDeveloperExceptionPage();
+}
+
+// Detaylı hata loglama için
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Unhandled exception occurred");
+        throw;
+    }
+});
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
