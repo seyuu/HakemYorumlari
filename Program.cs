@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using HakemYorumlari.Data;
-using HakemYorumlari.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,80 +9,54 @@ builder.Services.AddControllersWithViews();
 // Entity Framework - Production için özel yapılandırma
 if (builder.Environment.IsProduction())
 {
-    var connectionString = Environment.GetEnvironmentVariable("SQL_CONNECTION_STRING")
-        ?? builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? "Server=94.73.151.19;Database=u7401826_hakem;User Id=u7401826_hakem;Password=zdv@4-B8j.X3:I3R;TrustServerCertificate=true;MultipleActiveResultSets=true;";
+    var connectionString = Environment.GetEnvironmentVariable("SQL_CONNECTION_STRING");
+    
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        throw new InvalidOperationException("SQL_CONNECTION_STRING environment variable production ortamında zorunludur.");
+    }
     
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlServer(connectionString));
 }
 else
 {
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        throw new InvalidOperationException("DefaultConnection connection string development ortamında zorunludur.");
+    }
+    
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+        options.UseSqlServer(connectionString));
 }
-
-// HttpClient ekle
-builder.Services.AddHttpClient();
-
-// Servisleri ekle (doğru sırayla - dependency injection için)
-builder.Services.AddScoped<YouTubeScrapingService>();
-builder.Services.AddScoped<TVKanalScrapingService>();
-builder.Services.AddScoped<BeINSportsEmbedService>();
-builder.Services.AddScoped<HakemYorumuToplamaServisi>();
-builder.Services.AddScoped<SkorCekmeServisi>();
-builder.Services.AddScoped<PozisyonOtomatikTespitServisi>();
-
-// Background Service
-builder.Services.AddHostedService<MacTakipBackgroundService>();
 
 var app = builder.Build();
 
-// Veritabanı migration'larını otomatik uygula
-using (var scope = app.Services.CreateScope())
-{
-    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    try
-    {
-        context.Database.Migrate();
-        app.Logger.LogInformation("Veritabanı migration'ları başarıyla uygulandı");
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "Veritabanı migration hatası");
-    }
-}
+// Cloud Run için port yapılandırması - EN BAŞTA!
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+app.Logger.LogInformation($"Uygulama {port} portunda başlatılıyor...");
+
+// Cloud Run için doğru port binding - EN BAŞTA!
+app.Urls.Clear();
+app.Urls.Add($"http://0.0.0.0:{port}");
+
+app.Logger.LogInformation($"Port {port} dinleniyor...");
 
 // Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+else
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
-else
-{
-    app.UseDeveloperExceptionPage();
-}
-
-// Detaylı hata loglama için
-app.Use(async (context, next) =>
-{
-    try
-    {
-        await next();
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "Unhandled exception occurred");
-        throw;
-    }
-});
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-
 app.UseRouting();
-
 app.UseAuthorization();
 
 app.MapControllerRoute(

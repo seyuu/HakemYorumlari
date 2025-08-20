@@ -76,30 +76,38 @@ namespace HakemYorumlari.Services
             _logger = logger;
             _logger.LogInformation("YouTubeScrapingService constructor başlatıldı");
             
-            _apiKey = configuration["YouTube:ApiKey"];
-            _useOAuth2 = configuration.GetValue<bool>("YouTube:UseOAuth2", false);
-            _clientSecretPath = configuration["YouTube:ClientSecretPath"];
-            
-            _logger.LogInformation($"YouTube API Key alındı: {(!string.IsNullOrEmpty(_apiKey) ? "VAR" : "YOK")}");
-            _logger.LogInformation($"OAuth2 kullanımı: {_useOAuth2}");
-            
-            _httpClient = new HttpClient();
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", "HakemYorumlari/1.0");
-            _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-            _httpClient.DefaultRequestHeaders.Add("Referer", "https://hakemyorumlari.com.tr");
-            _httpClient.DefaultRequestHeaders.Add("Origin", "https://hakemyorumlari.com.tr");
+            try
+            {
+                _apiKey = configuration["YouTube:ApiKey"];
+                _useOAuth2 = configuration.GetValue<bool>("YouTube:UseOAuth2", false);
+                _clientSecretPath = configuration["YouTube:ClientSecretPath"];
+                
+                _logger.LogInformation($"YouTube API Key alındı: {(!string.IsNullOrEmpty(_apiKey) ? "VAR" : "YOK")}");
+                _logger.LogInformation($"OAuth2 kullanımı: {_useOAuth2}");
+                
+                _httpClient = new HttpClient();
+                _httpClient.DefaultRequestHeaders.Add("User-Agent", "HakemYorumlari/1.0");
+                _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+                _httpClient.DefaultRequestHeaders.Add("Referer", "https://hakemyorumlari.com.tr");
+                _httpClient.DefaultRequestHeaders.Add("Origin", "https://hakemyorumlari.com.tr");
 
-            if (_useOAuth2 && !string.IsNullOrEmpty(_clientSecretPath))
-            {
-                _ = Task.Run(InitializeOAuth2ServiceAsync);
+                if (_useOAuth2 && !string.IsNullOrEmpty(_clientSecretPath))
+                {
+                    _ = Task.Run(InitializeOAuth2ServiceAsync);
+                }
+                else if (!string.IsNullOrEmpty(_apiKey))
+                {
+                    InitializeApiKeyService();
+                }
+                else
+                {
+                    _logger.LogWarning("Ne OAuth2 ne de API anahtarı bulunamadı. YouTube servisi devre dışı.");
+                }
             }
-            else if (!string.IsNullOrEmpty(_apiKey))
+            catch (Exception ex)
             {
-                InitializeApiKeyService();
-            }
-            else
-            {
-                _logger.LogWarning("Ne OAuth2 ne de API anahtarı bulunamadı. YouTube servisi devre dışı.");
+                _logger.LogError(ex, "YouTubeScrapingService constructor'da hata oluştu, servis devre dışı kalacak");
+                // Hata durumunda servisi devre dışı bırak ama uygulamayı çökertme
             }
         }
 
@@ -156,7 +164,7 @@ namespace HakemYorumlari.Services
             
             if (_youtubeService == null)
             {
-                _logger.LogError("YouTube servisi NULL! Başlatılamadı.");
+                _logger.LogWarning("YouTube servisi NULL! Başlatılamadı. Boş liste döndürülüyor.");
                 return new List<BulunanYorum>();
             }
             
@@ -177,18 +185,17 @@ namespace HakemYorumlari.Services
                         
                         _logger.LogInformation($"{kanal.Key} kanalından {kanalYorumlari.Count} yorum bulundu");
                         
-                        // Rate limiting - YouTube API günlük limiti var
-                        await Task.Delay(2000);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, $"{kanal.Key} kanalından yorum toplama hatası");
+                        _logger.LogError(ex, $"{kanal.Key} kanalından yorum toplanırken hata oluştu");
+                        // Bir kanalda hata olsa bile diğerlerini denemeye devam et
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Kanal yorum toplama genel hatası");
+                _logger.LogError(ex, "MacIcinKanalYorumlariniTopla metodunda genel hata oluştu");
             }
 
             return bulunanYorumlar;
