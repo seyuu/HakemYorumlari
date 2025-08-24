@@ -6,14 +6,22 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-// HakemYorumuToplamaServisi için Typed HttpClient kaydı
+
+// ***** Buradaki kısım ÖNEMLİ! HakemYorumuToplamaServisi için Typed HttpClient kaydı *****
 // Bu, hem HakemYorumuToplamaServisi'ni DI'ya kaydeder hem de
 // constructor'ında HttpClient beklediğinde otomatik olarak sağlar.
+// YouTube API anahtarını çevresel değişkenden okuduğunuzdan emin olun.
 builder.Services.AddHttpClient<HakemYorumlari.Services.HakemYorumuToplamaServisi>(client =>
 {
-    // Eğer YouTube API'sinin temel adresi buysa ayarlayın
     client.BaseAddress = new Uri("https://www.googleapis.com/youtube/v3/");
-    // İsteğe bağlı olarak DefaultRequestHeaders gibi başka ayarlar da ekleyebilirsiniz.
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+
+    var youtubeApiKey = Environment.GetEnvironmentVariable("YOUTUBE_API_KEY");
+    if (string.IsNullOrEmpty(youtubeApiKey))
+    {
+        throw new InvalidOperationException("YOUTUBE_API_KEY environment variable is required.");
+    }
+    client.DefaultRequestHeaders.Add("X-Goog-Api-Key", youtubeApiKey);
 });
 
 // Entity Framework - Production için özel yapılandırma
