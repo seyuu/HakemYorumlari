@@ -12,12 +12,8 @@
 
     # Uygulamayı derle ve yayınla
     # Bu adım, view'ları ve diğer statik dosyaları yayın çıktısına dahil etmelidir.
-    # --no-self-contained ve -p:PublishReadyToRun=false ekleyerek Cloud Run için optimize ederiz.
-    RUN dotnet publish "HakemYorumlari.csproj" -c Release -o /app/publish --no-restore \
-        -p:UseAppHost=false \
-        -p:PublishTrimmed=true \
-        -p:PublishSingleFile=true \
-        -p:EnableCompressionInSingleFile=true
+    # Cloud Run için optimize edilmiş publish ayarları
+    RUN dotnet publish "HakemYorumlari.csproj" -c Release -o /app/publish --no-restore
 
     # Aşama 2: Çalışma zamanı imajı
     FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
