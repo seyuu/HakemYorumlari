@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HakemYorumlari")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+411a3ff1917a76c81166c646f91b317a2bdd0f09")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b7ddebbf6f2f45593f3442d6be2193d11e3ed806")]
 [assembly: System.Reflection.AssemblyProductAttribute("HakemYorumlari")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HakemYorumlari")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

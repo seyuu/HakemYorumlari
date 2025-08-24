@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using HakemYorumlari.Data;
+using HakemYorumlari.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +32,15 @@ else
         options.UseSqlServer(connectionString));
 }
 
+// Servisleri ekle
+builder.Services.AddScoped<YouTubeScrapingService>();
+builder.Services.AddScoped<TVKanalScrapingService>();
+builder.Services.AddScoped<BeINSportsEmbedService>();
+builder.Services.AddScoped<HakemYorumuToplamaServisi>();
+builder.Services.AddScoped<SkorCekmeServisi>();
+builder.Services.AddScoped<PozisyonOtomatikTespitServisi>();
+builder.Services.AddHostedService<MacTakipBackgroundService>();
+
 var app = builder.Build();
 
 // Cloud Run için port yapılandırması - EN BAŞTA!
@@ -43,6 +53,21 @@ app.Urls.Add($"http://0.0.0.0:{port}");
 
 app.Logger.LogInformation($"Port {port} dinleniyor...");
 
+// Database migration
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    try
+    {
+        context.Database.Migrate();
+        app.Logger.LogInformation("Veritabanı migration'ları başarıyla uygulandı");
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Veritabanı migration hatası");
+    }
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -54,7 +79,9 @@ else
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+// Cloud Run'da HTTPS redirection kullanma
+// app.UseHttpsRedirection(); // Bu satırı kaldırdık
+
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();

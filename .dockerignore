@@ -1,13 +1,9 @@
-Dockerfile*
-.dockerignore
+# Geliştirme ve derleme dosyalarını hariç tutar
+bin/
+obj/
+
+# Kaynak kontrolü ve IDE dosyalarını hariç tutar
 .git
 .gitignore
 .vs
 .vscode
-*/bin
-*/obj
-**/.toolstarget
-.env
-README.md
-app.yaml
-%TEMP%
