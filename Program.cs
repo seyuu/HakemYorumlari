@@ -6,9 +6,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-
-// HttpClient servisini ekle
-builder.Services.AddHttpClient();
+// HakemYorumuToplamaServisi için Typed HttpClient kaydı
+// Bu, hem HakemYorumuToplamaServisi'ni DI'ya kaydeder hem de
+// constructor'ında HttpClient beklediğinde otomatik olarak sağlar.
+builder.Services.AddHttpClient<HakemYorumlari.Services.HakemYorumuToplamaServisi>(client =>
+{
+    // Eğer YouTube API'sinin temel adresi buysa ayarlayın
+    client.BaseAddress = new Uri("https://www.googleapis.com/youtube/v3/");
+    // İsteğe bağlı olarak DefaultRequestHeaders gibi başka ayarlar da ekleyebilirsiniz.
+});
 
 // Entity Framework - Production için özel yapılandırma
 if (builder.Environment.IsProduction())
@@ -39,7 +45,6 @@ else
 builder.Services.AddScoped<YouTubeScrapingService>();
 builder.Services.AddScoped<TVKanalScrapingService>();
 builder.Services.AddScoped<BeINSportsEmbedService>();
-builder.Services.AddScoped<HakemYorumuToplamaServisi>();
 builder.Services.AddScoped<SkorCekmeServisi>();
 builder.Services.AddScoped<PozisyonOtomatikTespitServisi>();
 builder.Services.AddHostedService<MacTakipBackgroundService>();
