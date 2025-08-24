@@ -7,6 +7,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
+// HttpClient servisini ekle
+builder.Services.AddHttpClient();
+
 // Entity Framework - Production için özel yapılandırma
 if (builder.Environment.IsProduction())
 {
