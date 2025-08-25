@@ -5,7 +5,7 @@
 [Rr]eleases/
 x64/
 x86/
-[Ww][Ii][Nn]32/
+[Ww][Ii][Ii][Nn]32/
 [Aa][Rr][Mm]/
 [Aa][Rr][Mm]64/
 bld/
@@ -13,6 +13,10 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+
+# OAuth Client Secret files (güvenlik için)
+client_secret_*.json
+*.client_secret.json
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
