@@ -7,8 +7,6 @@
     <GenerateStaticWebAssetsManifest>false</GenerateStaticWebAssetsManifest>
     <StaticWebAssetBasePath>/</StaticWebAssetBasePath>
     <StaticWebAssetMode>Default</StaticWebAssetMode>
-    <EnableDefaultStaticWebAssets>false</EnableDefaultStaticWebAssets>
-    <EnableDefaultContentItems>false</EnableDefaultContentItems>
     
     <!-- Publish Configuration -->
     <SelfContained>false</SelfContained>
@@ -34,6 +32,7 @@
   <!-- Static Web Assets'leri manuel olarak ekle -->
   <ItemGroup>
     <Content Include="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Views\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
