@@ -4,9 +4,6 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <GenerateStaticWebAssetsManifest>false</GenerateStaticWebAssetsManifest>
-    <StaticWebAssetBasePath>/</StaticWebAssetBasePath>
-    <StaticWebAssetMode>Default</StaticWebAssetMode>
     
     <!-- Publish Configuration -->
     <SelfContained>false</SelfContained>
@@ -29,10 +26,16 @@
     <PackageReference Include="Google.Apis.Auth" Version="1.70.0" />
   </ItemGroup>
 
-  <!-- Static Web Assets'leri manuel olarak ekle -->
+  <!-- Tüm gerekli dosyaları dahil et -->
   <ItemGroup>
     <Content Include="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Views\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Controllers\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Models\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Services\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Data\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Migrations\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
+
