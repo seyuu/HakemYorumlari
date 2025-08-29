@@ -20,6 +20,13 @@ WORKDIR /app
 # Derlenmiş ve yayınlanmış çıktıları önceki aşamadan kopyala
 COPY --from=build /app/publish .
 
+# Views ve wwwroot klasörlerini manuel olarak kopyala
+COPY --from=build /src/Views ./Views
+COPY --from=build /src/wwwroot ./wwwroot
+
+# Klasör yapısını kontrol et
+RUN ls -la && echo "=== Views klasörü ===" && ls -la Views/ && echo "=== wwwroot klasörü ===" && ls -la wwwroot/
+
 # Uygulamanın dinleyeceği portu ve URL'i ayarla
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://0.0.0.0:8080
