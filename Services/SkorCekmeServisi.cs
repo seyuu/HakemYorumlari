@@ -141,7 +141,7 @@ namespace HakemYorumlari.Services
             if (string.IsNullOrEmpty(tffTeamName) || string.IsNullOrEmpty(ourTeamName))
                 return false;
 
-            // TFF'deki isimleri temizle - ToLower() KULLANMA!
+            // TFF'deki isimleri temizle
             var tffClean = tffTeamName
                 .Replace("A.Ş.", "")
                 .Replace("A.Ş", "")
@@ -169,17 +169,22 @@ namespace HakemYorumlari.Services
                 .Replace("İSTANBUL", "")
                 .Trim();
 
-            // Debug için log
-            _logger.LogDebug("Takım eşleştirme: TFF='{TffClean}' vs Bizim='{OurClean}'", tffClean, ourClean);
+            // Debug için detaylı log
+            _logger.LogInformation("🔍 Takım eşleştirme detayı:");
+            _logger.LogInformation("   TFF orijinal: '{TffOriginal}'", tffTeamName);
+            _logger.LogInformation("   TFF temizlenmiş: '{TffClean}'", tffClean);
+            _logger.LogInformation("   Bizim orijinal: '{OurOriginal}'", ourTeamName);
+            _logger.LogInformation("   Bizim temizlenmiş: '{OurClean}'", ourClean);
 
-            // Eşleştirme kontrolü - büyük/küçük harf duyarsız
+            // Eşleştirme kontrolü
             if (tffClean.Contains(ourClean, StringComparison.OrdinalIgnoreCase) || 
                 ourClean.Contains(tffClean, StringComparison.OrdinalIgnoreCase))
             {
-                _logger.LogDebug("Takım eşleşmesi bulundu!");
+                _logger.LogInformation("✅ Takım eşleşmesi bulundu!");
                 return true;
             }
 
+            _logger.LogWarning("❌ Takım eşleşmesi bulunamadı!");
             return false;
         }
 
