@@ -67,7 +67,14 @@ namespace HakemYorumlari.Services
                         // Ev sahibi takım adını al
                         var evSahibiNode = satir.SelectSingleNode(".//td[@class='haftaninMaclariEv']//span");
                         var deplasmanNode = satir.SelectSingleNode(".//td[@class='haftaninMaclariDeplasman']//span");
-                        
+                        // Debug için log ekle
+                        if (evSahibiNode != null && deplasmanNode != null)
+                        {
+                            var evSahibiAdi = evSahibiNode.InnerText?.Trim();
+                            var deplasmanAdi = deplasmanNode.InnerText?.Trim();
+                            
+                            _logger.LogInformation("�� TFF'de bulunan maç: {EvSahibi} vs {Deplasman}", evSahibiAdi, deplasmanAdi);
+                        }
                         // Skor bilgisini al - TFF'de skorlar span elementlerinde
                         var skorSpan1 = satir.SelectSingleNode(".//td[@class='haftaninMaclariSkor']//span[contains(@id, 'Label5')]");
                         var skorSpan2 = satir.SelectSingleNode(".//td[@class='haftaninMaclariSkor']//span[contains(@id, 'Label6')]");
