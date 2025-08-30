@@ -148,7 +148,7 @@ namespace HakemYorumlari.Services
             if (string.IsNullOrEmpty(tffTeamName) || string.IsNullOrEmpty(ourTeamName))
                 return false;
 
-            // TFF'deki isimleri temizle
+            // TFF'deki isimleri temizle - ToLower() KULLANMA!
             var tffClean = tffTeamName
                 .Replace("A.Ş.", "")
                 .Replace("A.Ş", "")
@@ -168,6 +168,10 @@ namespace HakemYorumlari.Services
                 .Replace("ADANA", "")
                 .Replace("DEMİRSPOR", "")
                 .Replace("İSTANBUL", "")
+                .Replace("MISIRLI.COM.TR", "")
+                .Replace("HESAP.COM", "")
+                .Replace("İKAS", "")
+                .Replace("CORENDON", "")
                 .Trim();
             
             var ourClean = ourTeamName
@@ -176,22 +180,17 @@ namespace HakemYorumlari.Services
                 .Replace("İSTANBUL", "")
                 .Trim();
 
-            // Debug için detaylı log
-            _logger.LogInformation("🔍 Takım eşleştirme detayı:");
-            _logger.LogInformation("   TFF orijinal: '{TffOriginal}'", tffTeamName);
-            _logger.LogInformation("   TFF temizlenmiş: '{TffClean}'", tffClean);
-            _logger.LogInformation("   Bizim orijinal: '{OurOriginal}'", ourTeamName);
-            _logger.LogInformation("   Bizim temizlenmiş: '{OurClean}'", ourClean);
+            // Debug için log
+            _logger.LogDebug("Takım eşleştirme: TFF='{TffClean}' vs Bizim='{OurClean}'", tffClean, ourClean);
 
-            // Eşleştirme kontrolü
+            // Eşleştirme kontrolü - büyük/küçük harf duyarsız
             if (tffClean.Contains(ourClean, StringComparison.OrdinalIgnoreCase) || 
                 ourClean.Contains(tffClean, StringComparison.OrdinalIgnoreCase))
             {
-                _logger.LogInformation("✅ Takım eşleşmesi bulundu!");
+                _logger.LogDebug("Takım eşleşmesi bulundu!");
                 return true;
             }
 
-            _logger.LogWarning("❌ Takım eşleşmesi bulunamadı!");
             return false;
         }
 
