@@ -1,9 +1,0 @@
-# Geliştirme ve derleme dosyalarını hariç tutar
-bin/
-obj/
-
-# Kaynak kontrolü ve IDE dosyalarını hariç tutar
-.git
-.gitignore
-.vs
-.vscode
