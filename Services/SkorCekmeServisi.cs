@@ -148,7 +148,7 @@ namespace HakemYorumlari.Services
             if (string.IsNullOrEmpty(tffTeamName) || string.IsNullOrEmpty(ourTeamName))
                 return false;
 
-            // TFF'deki isimleri temizle - ToLower() KULLANMA!
+            // TFF'deki isimleri temizle
             var tffClean = tffTeamName
                 .Replace("A.Ş.", "")
                 .Replace("A.Ş", "")
@@ -157,21 +157,18 @@ namespace HakemYorumlari.Services
                 .Replace("FUTBOL", "")
                 .Replace("KULÜBÜ", "")
                 .Replace("KULUBU", "")
-                .Replace("COR", "")
-                .Replace("ENDON", "")
+                .Replace("MISIRLI.COM.TR", "")
+                .Replace("İKAS", "")
+                .Replace("CORENDON", "")
+                .Replace("GÖZTEPE", "")
                 .Replace("HESAP.COM", "")
                 .Replace("ZECORNER", "")
                 .Replace("TÜMOSAN", "")
-                .Replace("IKAS", "")
                 .Replace("RAMS", "")
                 .Replace("ÇAYKUR", "")
                 .Replace("ADANA", "")
                 .Replace("DEMİRSPOR", "")
                 .Replace("İSTANBUL", "")
-                .Replace("MISIRLI.COM.TR", "")
-                .Replace("HESAP.COM", "")
-                .Replace("İKAS", "")
-                .Replace("CORENDON", "")
                 .Trim();
             
             var ourClean = ourTeamName
@@ -183,7 +180,7 @@ namespace HakemYorumlari.Services
             // Debug için log
             _logger.LogDebug("Takım eşleştirme: TFF='{TffClean}' vs Bizim='{OurClean}'", tffClean, ourClean);
 
-            // Eşleştirme kontrolü - büyük/küçük harf duyarsız
+            // Eşleştirme kontrolü
             if (tffClean.Contains(ourClean, StringComparison.OrdinalIgnoreCase) || 
                 ourClean.Contains(tffClean, StringComparison.OrdinalIgnoreCase))
             {
