@@ -178,7 +178,12 @@ namespace HakemYorumlari.Services
                 .Trim();
 
             // Debug için log
-            _logger.LogDebug("Takım eşleştirme: TFF='{TffClean}' vs Bizim='{OurClean}'", tffClean, ourClean);
+              // Debug için detaylı log
+            _logger.LogInformation("=== TAKIM EŞLEŞTİRME DEBUG ===");
+            _logger.LogInformation("Orijinal TFF: '{TffTeamName}'", tffTeamName);
+            _logger.LogInformation("Orijinal Bizim: '{OurTeamName}'", ourTeamName);
+            _logger.LogInformation("Temizlenmiş TFF: '{TffClean}'", tffClean);
+            _logger.LogInformation("Temizlenmiş Bizim: '{OurClean}'", ourClean);
 
             // Eşleştirme kontrolü
             if (tffClean.Contains(ourClean, StringComparison.OrdinalIgnoreCase) || 
@@ -187,7 +192,7 @@ namespace HakemYorumlari.Services
                 _logger.LogDebug("Takım eşleşmesi bulundu!");
                 return true;
             }
-
+            _logger.LogInformation("❌ TAKIM EŞLEŞMESİ BULUNAMADI!");
             return false;
         }
 
