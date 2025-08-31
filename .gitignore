@@ -374,6 +374,3 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
-
-# Google OAuth2 client secrets
-client_secret_*.json
