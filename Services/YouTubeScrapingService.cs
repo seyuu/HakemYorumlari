@@ -71,43 +71,34 @@ namespace HakemYorumlari.Services
             public string KanalTuru { get; set; } = "";
         }
 
-        public YouTubeScrapingService(ILogger<YouTubeScrapingService> logger, IConfiguration configuration)
+        public YouTubeScrapingService(IConfiguration configuration, ILogger<YouTubeScrapingService> logger)
         {
             _logger = logger;
             _logger.LogInformation("YouTubeScrapingService constructor başlatıldı");
-            
-            try
-            {
-                _apiKey = configuration["YouTube:ApiKey"];
-                _useOAuth2 = configuration.GetValue<bool>("YouTube:UseOAuth2", false);
-                _clientSecretPath = configuration["YouTube:ClientSecretPath"];
-                
-                _logger.LogInformation($"YouTube API Key alındı: {(!string.IsNullOrEmpty(_apiKey) ? "VAR" : "YOK")}");
-                _logger.LogInformation($"OAuth2 kullanımı: {_useOAuth2}");
-                
-                _httpClient = new HttpClient();
-                _httpClient.DefaultRequestHeaders.Add("User-Agent", "HakemYorumlari/1.0");
-                _httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-                _httpClient.DefaultRequestHeaders.Add("Referer", "https://hakemyorumlari.com.tr");
-                _httpClient.DefaultRequestHeaders.Add("Origin", "https://hakemyorumlari.com.tr");
 
-                if (_useOAuth2 && !string.IsNullOrEmpty(_clientSecretPath))
-                {
-                    _ = Task.Run(InitializeOAuth2ServiceAsync);
-                }
-                else if (!string.IsNullOrEmpty(_apiKey))
-                {
-                    InitializeApiKeyService();
-                }
-                else
-                {
-                    _logger.LogWarning("Ne OAuth2 ne de API anahtarı bulunamadı. YouTube servisi devre dışı.");
-                }
-            }
-            catch (Exception ex)
+            // OAuth2 Web Client credentials al
+            var clientId = configuration["YouTube:ClientId"];
+            var clientSecret = configuration["YouTube:ClientSecret"];
+            
+            if (!string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(clientSecret))
             {
-                _logger.LogError(ex, "YouTubeScrapingService constructor'da hata oluştu, servis devre dışı kalacak");
-                // Hata durumunda servisi devre dışı bırak ama uygulamayı çökertme
+                _logger.LogInformation("OAuth2 Web Client kullanılıyor: {ClientId}", clientId);
+                
+                // OAuth2 Web Client ile YouTube servisi başlat
+                var credential = GoogleCredential.FromFile("client_secret_783732375215-i9n88ipg0ft6ef060171e3gubvcc9en1.apps.googleusercontent.com.json")
+                    .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                    
+                _youtubeService = new YouTubeService(new BaseClientService.Initializer()
+                {
+                    HttpClientInitializer = credential,
+                    ApplicationName = configuration["YouTube:ApplicationName"] ?? "hakemyorumlama"
+                });
+                
+                _logger.LogInformation("YouTube servisi OAuth2 ile başlatıldı");
+            }
+            else
+            {
+                _logger.LogWarning("OAuth2 credentials bulunamadı. YouTube servisi devre dışı.");
             }
         }
 
