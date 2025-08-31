@@ -169,29 +169,30 @@ namespace HakemYorumlari.Services
                 .Replace("ADANA", "")
                 .Replace("DEMİRSPOR", "")
                 .Replace("İSTANBUL", "")
-                .Trim();
+                .Trim()
+                .ToLower(); // Büyük/küçük harf duyarsız yap
             
             var ourClean = ourTeamName
                 .Replace("A.Ş.", "")
                 .Replace("FK", "")
                 .Replace("İSTANBUL", "")
-                .Trim();
+                .Trim()
+                .ToLower(); // Büyük/küçük harf duyarsız yap
 
-            // Debug için log
-              // Debug için detaylı log
+            // Debug için detaylı log
             _logger.LogInformation("=== TAKIM EŞLEŞTİRME DEBUG ===");
             _logger.LogInformation("Orijinal TFF: '{TffTeamName}'", tffTeamName);
             _logger.LogInformation("Orijinal Bizim: '{OurTeamName}'", ourTeamName);
             _logger.LogInformation("Temizlenmiş TFF: '{TffClean}'", tffClean);
             _logger.LogInformation("Temizlenmiş Bizim: '{OurClean}'", ourClean);
 
-            // Eşleştirme kontrolü
-            if (tffClean.Contains(ourClean, StringComparison.OrdinalIgnoreCase) || 
-                ourClean.Contains(tffClean, StringComparison.OrdinalIgnoreCase))
+            // Eşleştirme kontrolü - artık büyük/küçük harf duyarsız
+            if (tffClean.Contains(ourClean) || ourClean.Contains(tffClean))
             {
-                _logger.LogDebug("Takım eşleşmesi bulundu!");
+                _logger.LogInformation("✅ TAKIM EŞLEŞMESİ BULUNDU!");
                 return true;
             }
+
             _logger.LogInformation("❌ TAKIM EŞLEŞMESİ BULUNAMADI!");
             return false;
         }
