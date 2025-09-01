@@ -84,12 +84,18 @@ namespace HakemYorumlari.Services
             {
                 _logger.LogInformation("OAuth2 Web Client kullanılıyor: {ClientId}", clientId);
                 
-                // OAuth2 Web Client ile YouTube servisi başlat
-                var credentialJson = $"{{\"web\":{{\"client_id\":\"{clientId}\",\"client_secret\":\"{clientSecret}\",\"auth_uri\":\"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\":\"https://www.googleapis.com/oauth2/v1/certs\",\"redirect_uris\":[\"https://hakemyorumlari-783732375215.europe-west1.run.app/signin-google\"]}}}}";
+                var clientSecrets = new ClientSecrets
+                {
+                    ClientId = clientId,
+                    ClientSecret = clientSecret
+                };
                 
-                var credential = GoogleCredential.FromStream(new MemoryStream(Encoding.UTF8.GetBytes(credentialJson)))
-                    .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
-// ... existing code ...
+                var credential = GoogleWebAuthorizationBroker.AuthorizeAsync(
+                    clientSecrets,
+                    new[] { YouTubeService.Scope.YoutubeReadonly },
+                    "user",
+                    CancellationToken.None).Result;
+
                 _youtubeService = new YouTubeService(new BaseClientService.Initializer()
                 {
                     HttpClientInitializer = credential,
