@@ -85,7 +85,7 @@ namespace HakemYorumlari.Services
                 _logger.LogInformation("OAuth2 Web Client kullanılıyor: {ClientId}", clientId);
                 
                 // OAuth2 Web Client ile YouTube servisi başlat
-                var credential = GoogleCredential.FromFile("client_secret_783732375215-i9n88ipg0ft6ef060171e3gubvcc9en1.apps.googleusercontent.com.json")
+                var credential = GoogleCredential.FromFile("/layers/google.dotnet.publish/publish/bin/client_secret_783732375215-i9n88ipg0ft6ef060171e3gubvcc9en1.apps.googleusercontent.com.json")
                     .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
                     
                 _youtubeService = new YouTubeService(new BaseClientService.Initializer()
