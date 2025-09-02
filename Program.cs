@@ -35,7 +35,10 @@ if (builder.Environment.IsProduction())
 }
 else
 {
-    var connectionString = builder.Configuration.GetConnectionString("SQL_CONNECTION_STRING");
+    // Development modunda hem appsettings.json'dan hem environment variable'dan oku
+    var connectionString = builder.Configuration.GetConnectionString("SQL_CONNECTION_STRING") 
+                          ?? Environment.GetEnvironmentVariable("SQL_CONNECTION_STRING");
+    
     if (string.IsNullOrEmpty(connectionString))
     {
         throw new InvalidOperationException("SQL_CONNECTION_STRING connection string development ortamında zorunludur.");
