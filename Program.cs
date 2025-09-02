@@ -35,7 +35,7 @@ if (builder.Environment.IsProduction())
 }
 else
 {
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    var connectionString = builder.Configuration.GetConnectionString("SQL_CONNECTION_STRING");
     if (string.IsNullOrEmpty(connectionString))
     {
         throw new InvalidOperationException("DefaultConnection connection string development ortamında zorunludur.");
