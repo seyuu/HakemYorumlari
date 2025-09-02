@@ -88,7 +88,7 @@ namespace HakemYorumlari.Services
                 if (!string.IsNullOrEmpty(serviceAccountJson))
                 {
                     _logger.LogInformation("Service Account JSON bulundu, YouTube servisi başlatılıyor...");
-                    var credential = GoogleCredential.FromStream(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(serviceAccountJson)))
+                    var credential = GoogleCredential.GetApplicationDefault()
                         .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
                         
                     _youtubeService = new YouTubeService(new BaseClientService.Initializer()
