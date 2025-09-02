@@ -74,40 +74,82 @@ namespace HakemYorumlari.Services
         public YouTubeScrapingService(IConfiguration configuration, ILogger<YouTubeScrapingService> logger)
         {
             _logger = logger;
+            _httpClient = new HttpClient();
             _logger.LogInformation("YouTubeScrapingService constructor başlatıldı");
 
-            // OAuth2 Web Client credentials al
-            var clientId = configuration["YouTube:ClientId"];
-            var clientSecret = configuration["YouTube:ClientSecret"];
-            
-            if (!string.IsNullOrEmpty(clientId) && !string.IsNullOrEmpty(clientSecret))
+            try
             {
-                _logger.LogInformation("OAuth2 Web Client kullanılıyor: {ClientId}", clientId);
-                
-                var serviceAccountJson = Environment.GetEnvironmentVariable("SERVICE_ACCOUNT_JSON");
-                if (!string.IsNullOrEmpty(serviceAccountJson))
-                {
-                    _logger.LogInformation("Service Account JSON bulundu, YouTube servisi başlatılıyor...");
-                    var credential = GoogleCredential.GetApplicationDefault()
-                        .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
-                        
-                    _youtubeService = new YouTubeService(new BaseClientService.Initializer()
-                    {
-                        HttpClientInitializer = credential,
-                        ApplicationName = configuration["YouTube:ApplicationName"] ?? "hakemyorumlama"
-                    });
-                    _logger.LogInformation("YouTube servisi Service Account ile başlatıldı");
-                }
-                else
-                {
-                    _logger.LogWarning("SERVICE_ACCOUNT_JSON environment variable bulunamadı!");
-                }
-                    
+            GoogleCredential credential = null;
+            var jsonPath = configuration["SERVICE_ACCOUNT_JSON"];
+
+            if (!string.IsNullOrEmpty(jsonPath) && File.Exists(jsonPath))
+            {
+            _logger.LogInformation("SERVICE_ACCOUNT_JSON bulundu: {Path}", jsonPath);
+            credential = GoogleCredential.FromFile(jsonPath)
+            .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+            }
+            else if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS")))
+            {
+            var envPath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
+            _logger.LogInformation("GOOGLE_APPLICATION_CREDENTIALS bulundu: {Path}", envPath);
+            credential = GoogleCredential.FromFile(envPath)
+            .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
             }
             else
             {
-                _logger.LogWarning("OAuth2 credentials bulunamadı. YouTube servisi devre dışı.");
+            _logger.LogWarning("Kimlik bilgisi bulunamadı, Application Default Credentials denenecek");
+            credential = GoogleCredential.GetApplicationDefault()
+            .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
             }
+
+
+            if (credential != null)
+            {
+            _youtubeService = new YouTubeService(new BaseClientService.Initializer()
+            {
+            HttpClientInitializer = credential,
+            ApplicationName = "HakemYorumlari"
+            });
+
+
+            _logger.LogInformation("YouTube servisi başarıyla başlatıldı.");
+            }
+            else
+            {
+            _logger.LogError("YouTube servisi NULL! Başlatılamadı.");
+            }
+            }
+            catch (Exception ex)
+            {
+            _logger.LogError(ex, "YouTubeScrapingService başlatılırken hata oluştu");
+            }
+        }
+
+
+        public async Task<string> GetVideoCommentsAsync(string videoId)
+        {
+        if (_youtubeService == null)
+        {
+        _logger.LogError("YouTube servisi başlatılamamış, yorum çekilemez.");
+        return string.Empty;
+        }
+
+
+        try
+        {
+        var request = _youtubeService.CommentThreads.List("snippet");
+        request.VideoId = videoId;
+        request.MaxResults = 10;
+
+
+        var response = await request.ExecuteAsync();
+        return System.Text.Json.JsonSerializer.Serialize(response);
+        }
+        catch (Exception ex)
+        {
+        _logger.LogError(ex, "Yorumlar alınırken hata oluştu");
+        return string.Empty;
+        }
         }
 
         // ------------------------ Yardımcılar (TR normalize / tam kelime arama / takım ayrıştırma) ------------------------

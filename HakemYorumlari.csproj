@@ -36,6 +36,7 @@
     <Content Include="Services\**\*" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Data\**\*" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Migrations\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="hakemyorumlama-2bf8fa35cf41.json" CopyToOutputDirectory="Always" />
   </ItemGroup>
 
 </Project>
