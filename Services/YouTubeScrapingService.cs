@@ -85,7 +85,7 @@ namespace HakemYorumlari.Services
                 _logger.LogInformation("OAuth2 Web Client kullanılıyor: {ClientId}", clientId);
                 
                 // Service Account ile YouTube servisi başlat
-                var credential = GoogleCredential.FromFile("hakemyorumlama-2bf8fa35cf41.json")
+                var credential = GoogleCredential.FromFile("/workspace/hakemyorumlama-2bf8fa35cf41.json")
                     .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
                     
                 _youtubeService = new YouTubeService(new BaseClientService.Initializer()
