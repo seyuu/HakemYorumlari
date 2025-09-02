@@ -74,20 +74,46 @@ namespace HakemYorumlari.Services
         public YouTubeScrapingService(IConfiguration configuration, ILogger<YouTubeScrapingService> logger)
         {
             _logger = logger;
+            _httpClient = new HttpClient();
+            _apiKey = configuration["YouTube:ApiKey"];
+            _useOAuth2 = configuration.GetValue<bool>("YouTube:UseOAuth2", false);
+            _clientSecretPath = configuration["YouTube:ClientSecretPath"];
             _logger.LogInformation("YouTubeScrapingService constructor başlatıldı");
 
-            var secretPath = Environment.GetEnvironmentVariable("SERVICE_ACCOUNT_JSON");
-            if (!string.IsNullOrEmpty(secretPath))
+            try
             {
-                _logger.LogInformation("SERVICE_ACCOUNT_JSON bulundu: {Path}", secretPath);
-                credential = GoogleCredential.FromFile(secretPath)
-                    .CreateScoped(YouTubeService.Scope.YoutubeForceSsl);
+                GoogleCredential credential = null;
+                var secretPath = Environment.GetEnvironmentVariable("SERVICE_ACCOUNT_JSON");
+                if (!string.IsNullOrEmpty(secretPath))
+                {
+                    _logger.LogInformation("SERVICE_ACCOUNT_JSON bulundu: {Path}", secretPath);
+                    credential = GoogleCredential.FromFile(secretPath)
+                    .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
             }
             else
             {
                 _logger.LogWarning("Kimlik bilgisi env var içinde yok, Application Default Credentials denenecek");
-                credential = GoogleCredential.GetApplicationDefault()
-                    .CreateScoped(YouTubeService.Scope.YoutubeForceSsl);
+                                credential = GoogleCredential.GetApplicationDefault()
+                .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+            }
+
+            if (credential != null)
+            {
+                _youtubeService = new YouTubeService(new BaseClientService.Initializer()
+                {
+                    HttpClientInitializer = credential,
+                    ApplicationName = "HakemYorumlari"
+                });
+                _logger.LogInformation("YouTube servisi başarıyla başlatıldı.");
+            }
+            else
+            {
+                _logger.LogError("YouTube servisi NULL! Başlatılamadı.");
+            }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "YouTubeScrapingService başlatılırken hata oluştu");
             }
         }
 
