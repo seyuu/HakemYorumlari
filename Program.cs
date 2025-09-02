@@ -20,10 +20,29 @@ builder.Services.AddHttpClient<HakemYorumlari.Services.HakemYorumuToplamaServisi
     // Burada sadece temel yapılandırma yapıyoruz
 });
 
-var connectionString = builder.Configuration.GetConnectionString("SQL_CONNECTION_STRING");
-if (string.IsNullOrEmpty(connectionString))
+// Entity Framework - Production için özel yapılandırma
+if (builder.Environment.IsProduction())
 {
-    throw new InvalidOperationException("SQL_CONNECTION_STRING connection string development ortamında zorunludur.");
+    var connectionString = Environment.GetEnvironmentVariable("SQL_CONNECTION_STRING");
+    
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        throw new InvalidOperationException("SQL_CONNECTION_STRING environment variable production ortamında zorunludur.");
+    }
+    
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlServer(connectionString));
+}
+else
+{
+    var connectionString = builder.Configuration.GetConnectionString("SQL_CONNECTION_STRING");
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        throw new InvalidOperationException("SQL_CONNECTION_STRING connection string development ortamında zorunludur.");
+    }
+    
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlServer(connectionString));
 }
 
 // Servisleri ekle
