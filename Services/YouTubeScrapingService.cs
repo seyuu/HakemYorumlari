@@ -83,19 +83,21 @@ namespace HakemYorumlari.Services
             try
             {
                 GoogleCredential credential = null;
-                var secretPath = Environment.GetEnvironmentVariable("SERVICE_ACCOUNT_JSON");
-                if (!string.IsNullOrEmpty(secretPath))
+                
+                // Önce GOOGLE_APPLICATION_CREDENTIALS dosya yolunu kontrol et
+                var credentialsPath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
+                if (!string.IsNullOrEmpty(credentialsPath))
                 {
-                    _logger.LogInformation("SERVICE_ACCOUNT_JSON bulundu: {Path}", secretPath);
-                    credential = GoogleCredential.FromFile(secretPath)
-                    .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
-            }
-            else
-            {
-                _logger.LogWarning("Kimlik bilgisi env var içinde yok, Application Default Credentials denenecek");
-                                credential = GoogleCredential.GetApplicationDefault()
-                .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
-            }
+                    _logger.LogInformation("GOOGLE_APPLICATION_CREDENTIALS bulundu: {Path}", credentialsPath);
+                    credential = GoogleCredential.FromFile(credentialsPath)
+                        .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                }
+                else
+                {
+                    _logger.LogWarning("GOOGLE_APPLICATION_CREDENTIALS bulunamadı, Application Default Credentials denenecek");
+                    credential = GoogleCredential.GetApplicationDefault()
+                        .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                }
 
             if (credential != null)
             {
