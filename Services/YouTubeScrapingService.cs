@@ -84,17 +84,20 @@ namespace HakemYorumlari.Services
             {
                 _logger.LogInformation("OAuth2 Web Client kullanılıyor: {ClientId}", clientId);
                 
-                // Service Account ile YouTube servisi başlat
-                var credential = GoogleCredential.FromFile("/layers/google.dotnet.publish/publish/bin/hakemyorumlama-2bf8fa35cf41.json")
-                    .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
-                    
-                _youtubeService = new YouTubeService(new BaseClientService.Initializer()
+                var serviceAccountJson = Environment.GetEnvironmentVariable("SERVICE_ACCOUNT_JSON");
+                if (!string.IsNullOrEmpty(serviceAccountJson))
                 {
-                    HttpClientInitializer = credential,
-                    ApplicationName = configuration["YouTube:ApplicationName"] ?? "hakemyorumlama"
-                });
-                
-                _logger.LogInformation("YouTube servisi OAuth2 ile başlatıldı");
+                    var credential = GoogleCredential.FromStream(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(serviceAccountJson)))
+                        .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                        
+                    _youtubeService = new YouTubeService(new BaseClientService.Initializer()
+                    {
+                        HttpClientInitializer = credential,
+                        ApplicationName = configuration["YouTube:ApplicationName"] ?? "hakemyorumlama"
+                    });
+                    _logger.LogInformation("YouTube servisi Service Account ile başlatıldı");
+                }
+                    
             }
             else
             {
