@@ -87,6 +87,7 @@ namespace HakemYorumlari.Services
                 var serviceAccountJson = Environment.GetEnvironmentVariable("SERVICE_ACCOUNT_JSON");
                 if (!string.IsNullOrEmpty(serviceAccountJson))
                 {
+                    _logger.LogInformation("Service Account JSON bulundu, YouTube servisi başlatılıyor...");
                     var credential = GoogleCredential.FromStream(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(serviceAccountJson)))
                         .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
                         
@@ -96,6 +97,10 @@ namespace HakemYorumlari.Services
                         ApplicationName = configuration["YouTube:ApplicationName"] ?? "hakemyorumlama"
                     });
                     _logger.LogInformation("YouTube servisi Service Account ile başlatıldı");
+                }
+                else
+                {
+                    _logger.LogWarning("SERVICE_ACCOUNT_JSON environment variable bulunamadı!");
                 }
                     
             }
