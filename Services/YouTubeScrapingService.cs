@@ -74,82 +74,21 @@ namespace HakemYorumlari.Services
         public YouTubeScrapingService(IConfiguration configuration, ILogger<YouTubeScrapingService> logger)
         {
             _logger = logger;
-            _httpClient = new HttpClient();
             _logger.LogInformation("YouTubeScrapingService constructor başlatıldı");
 
-            try
+            var secretPath = Environment.GetEnvironmentVariable("SERVICE_ACCOUNT_JSON");
+            if (!string.IsNullOrEmpty(secretPath))
             {
-            GoogleCredential credential = null;
-            var jsonPath = configuration["SERVICE_ACCOUNT_JSON"];
-
-            if (!string.IsNullOrEmpty(jsonPath) && File.Exists(jsonPath))
-            {
-            _logger.LogInformation("SERVICE_ACCOUNT_JSON bulundu: {Path}", jsonPath);
-            credential = GoogleCredential.FromFile(jsonPath)
-            .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
-            }
-            else if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS")))
-            {
-            var envPath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
-            _logger.LogInformation("GOOGLE_APPLICATION_CREDENTIALS bulundu: {Path}", envPath);
-            credential = GoogleCredential.FromFile(envPath)
-            .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                _logger.LogInformation("SERVICE_ACCOUNT_JSON bulundu: {Path}", secretPath);
+                credential = GoogleCredential.FromFile(secretPath)
+                    .CreateScoped(YouTubeService.Scope.YoutubeForceSsl);
             }
             else
             {
-            _logger.LogWarning("Kimlik bilgisi bulunamadı, Application Default Credentials denenecek");
-            credential = GoogleCredential.GetApplicationDefault()
-            .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                _logger.LogWarning("Kimlik bilgisi env var içinde yok, Application Default Credentials denenecek");
+                credential = GoogleCredential.GetApplicationDefault()
+                    .CreateScoped(YouTubeService.Scope.YoutubeForceSsl);
             }
-
-
-            if (credential != null)
-            {
-            _youtubeService = new YouTubeService(new BaseClientService.Initializer()
-            {
-            HttpClientInitializer = credential,
-            ApplicationName = "HakemYorumlari"
-            });
-
-
-            _logger.LogInformation("YouTube servisi başarıyla başlatıldı.");
-            }
-            else
-            {
-            _logger.LogError("YouTube servisi NULL! Başlatılamadı.");
-            }
-            }
-            catch (Exception ex)
-            {
-            _logger.LogError(ex, "YouTubeScrapingService başlatılırken hata oluştu");
-            }
-        }
-
-
-        public async Task<string> GetVideoCommentsAsync(string videoId)
-        {
-        if (_youtubeService == null)
-        {
-        _logger.LogError("YouTube servisi başlatılamamış, yorum çekilemez.");
-        return string.Empty;
-        }
-
-
-        try
-        {
-        var request = _youtubeService.CommentThreads.List("snippet");
-        request.VideoId = videoId;
-        request.MaxResults = 10;
-
-
-        var response = await request.ExecuteAsync();
-        return System.Text.Json.JsonSerializer.Serialize(response);
-        }
-        catch (Exception ex)
-        {
-        _logger.LogError(ex, "Yorumlar alınırken hata oluştu");
-        return string.Empty;
-        }
         }
 
         // ------------------------ Yardımcılar (TR normalize / tam kelime arama / takım ayrıştırma) ------------------------
