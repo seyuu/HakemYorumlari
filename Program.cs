@@ -71,6 +71,33 @@ app.Urls.Add($"http://0.0.0.0:{port}");
 
 app.Logger.LogInformation($"Port {port} dinleniyor...");
 
+// Google credentials dosyası kontrolü
+var credentialsPath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
+if (string.IsNullOrEmpty(credentialsPath))
+{
+    // Cloud Run'da farklı yollar dene
+    var alternativePaths = new[]
+    {
+        "/app/hakemyorumlama-2bf8fa35cf41.json",
+        "/workspace/hakemyorumlama-2bf8fa35cf41.json",
+        "./hakemyorumlama-2bf8fa35cf41.json"
+    };
+    
+    foreach (var altPath in alternativePaths)
+    {
+        if (File.Exists(altPath))
+        {
+            Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", altPath);
+            app.Logger.LogInformation($"GOOGLE_APPLICATION_CREDENTIALS ayarlandı: {altPath}");
+            break;
+        }
+    }
+}
+else
+{
+    app.Logger.LogInformation($"GOOGLE_APPLICATION_CREDENTIALS zaten ayarlı: {credentialsPath}");
+}
+
 // Database migration
 using (var scope = app.Services.CreateScope())
 {
