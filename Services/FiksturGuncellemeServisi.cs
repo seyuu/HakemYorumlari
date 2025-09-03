@@ -174,7 +174,7 @@ namespace HakemYorumlari.Services
                             Hafta = hafta,
                             Liga = "Süper Lig",
                             Skor = skor,
-                            Durum = skor == "-" ? 0 : 1, // 0: Oynanmadı, 1: Oynandı
+                            Durum = skor == "-" ? MacDurumu.Bekliyor : MacDurumu.Bitti,
                             OtomatikYorumToplamaAktif = true,
                             YorumlarToplandi = false
                         };
