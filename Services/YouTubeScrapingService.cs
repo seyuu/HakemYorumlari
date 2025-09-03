@@ -399,7 +399,7 @@ namespace HakemYorumlari.Services
                     
                     foreach (var video in playlistVideolari)
                     {
-                        if (IsMacIleIlgiliVideo(video.Snippet.Title, video.Snippet.Description, macBilgisi))
+                        if (IsMacIleIlgiliVideo(video.Snippet.Title, video.Snippet.Description, macBilgisi, macTarihi))
                         {
                             _logger.LogInformation($"İlgili video bulundu: {video.Snippet.Title}");
                             var yorum = await VideoDetaylariniAl(video, macBilgisi, kanal);
@@ -419,7 +419,7 @@ namespace HakemYorumlari.Services
                 
                 foreach (var video in kanalVideolari)
                 {
-                    if (IsMacIleIlgiliVideo(video.Snippet.Title, video.Snippet.Description, macBilgisi))
+                    if (IsMacIleIlgiliVideo(video.Snippet.Title, video.Snippet.Description, macBilgisi, macTarihi))
                     {
                         _logger.LogInformation($"İlgili video bulundu: {video.Snippet.Title}");
                         var yorum = await VideoDetaylariniAl(video, macBilgisi, kanal);
@@ -532,7 +532,7 @@ namespace HakemYorumlari.Services
         /// <summary>
         /// Video maç ile ilgili mi kontrol eder
         /// </summary>
-        private bool IsMacIleIlgiliVideo(string? title, string? description, string macBilgisi)
+        private bool IsMacIleIlgiliVideo(string? title, string? description, string macBilgisi, DateTime macTarihi)
         {
             if (string.IsNullOrEmpty(title) && string.IsNullOrEmpty(description)) return false;
 
@@ -540,36 +540,14 @@ namespace HakemYorumlari.Services
             var nText = NormalizeTr(full);
             var (home, away) = ParseTeams(macBilgisi);
 
-            // Takım adları var mı kontrol et
-            var hasTeam = false;
-            if (!string.IsNullOrWhiteSpace(home)) 
-            {
-                hasTeam |= ContainsWholeWord(nText, NormalizeTr(home));
-                hasTeam |= nText.Contains(NormalizeTr(home)); // Tam kelime olmadan da kontrol et
-            }
-            if (!string.IsNullOrWhiteSpace(away)) 
-            {
-                hasTeam |= ContainsWholeWord(nText, NormalizeTr(away));
-                hasTeam |= nText.Contains(NormalizeTr(away)); // Tam kelime olmadan da kontrol et
-            }
-
-            // Hakem kelimeleri var mı kontrol et
+            // Her iki takım adı da geçmeli (daha sıkı kontrol)
+            bool evSahibiVar = !string.IsNullOrWhiteSpace(home) && nText.Contains(NormalizeTr(home));
+            bool deplasmanVar = !string.IsNullOrWhiteSpace(away) && nText.Contains(NormalizeTr(away));
+            
+            // Sadece her iki takım da geçiyorsa ve hakem kelimesi varsa kabul et
             var hakemKelimeVarMi = _hakemAnahtarKelimeler.Any(k => nText.Contains(NormalizeTr(k)));
-
-            // 1. Takım adı + hakem kelimesi → Kesin ilgili
-            if (hasTeam && hakemKelimeVarMi) return true;
-
-            // 2. Sadece hakem kelimesi + yorumcu adı → Muhtemelen ilgili
-            if (hakemKelimeVarMi && _sporKanallari.Values.Any(k => nText.Contains(NormalizeTr(k.YorumcuAdi))))
-                return true;
-
-            // 3. Sadece takım adı → Maç ile ilgili olabilir
-            if (hasTeam) return true;
-
-            // 4. Sadece hakem kelimesi → Genel hakem yorumu olabilir
-            if (hakemKelimeVarMi) return true;
-
-            return false;
+            
+            return evSahibiVar && deplasmanVar && hakemKelimeVarMi;
         }
 
         /// <summary>
@@ -701,51 +679,51 @@ namespace HakemYorumlari.Services
             }
         }
 
-        public async Task<BulunanYorum?> VideoLinkindenTekYorum(string youtubeUrl, string macBilgisi, string? yorumcuAdiOverride = null)
+        public async Task<BulunanYorum?> VideoLinkindenTekYorum(string youtubeUrl, string macBilgisi, DateTime macTarihi, string? yorumcuAdiOverride = null)
+    {
+        if (_youtubeService == null) 
         {
-            if (_youtubeService == null) 
+            _logger.LogWarning("YouTube servisi null - API key eksik olabilir");
+            return null;
+        }
+
+        _logger.LogInformation($"VideoLinkindenTekYorum başlatıldı: URL={youtubeUrl}, MacBilgisi={macBilgisi}");
+
+        var videoId = ParseVideoIdFromUrl(youtubeUrl);
+        if (string.IsNullOrEmpty(videoId))
+        {
+            _logger.LogWarning($"YouTube video ID parse edilemedi: {youtubeUrl}");
+            return null;
+        }
+
+        _logger.LogInformation($"Video ID parse edildi: {videoId}");
+
+        try
+        {
+            var videoRequest = _youtubeService.Videos.List("snippet,statistics");
+            videoRequest.Id = videoId;
+            var response = await videoRequest.ExecuteAsync();
+            var video = response.Items?.FirstOrDefault();
+            
+            if (video == null) 
             {
-                _logger.LogWarning("YouTube servisi null - API key eksik olabilir");
+                _logger.LogWarning($"YouTube API'den video bulunamadı: {videoId}");
                 return null;
             }
 
-            _logger.LogInformation($"VideoLinkindenTekYorum başlatıldı: URL={youtubeUrl}, MacBilgisi={macBilgisi}");
+            _logger.LogInformation($"Video bulundu: Title={video.Snippet?.Title}, Channel={video.Snippet?.ChannelTitle}");
 
-            var videoId = ParseVideoIdFromUrl(youtubeUrl);
-            if (string.IsNullOrEmpty(videoId))
+            var title = video.Snippet?.Title ?? "";
+            var desc = video.Snippet?.Description ?? "";
+            
+            var isMacIleIlgili = IsMacIleIlgiliVideo(title, desc, macBilgisi, macTarihi);
+            _logger.LogInformation($"Video maçla ilişkili mi: {isMacIleIlgili}");
+
+            if (!isMacIleIlgili)
             {
-                _logger.LogWarning($"YouTube video ID parse edilemedi: {youtubeUrl}");
-                return null;
+                _logger.LogInformation($"Video maçla ilişkili değil görünüyor: {title}");
+                // Yine de yorum olarak ekle - kullanıcı manuel olarak eklemek istiyor
             }
-
-            _logger.LogInformation($"Video ID parse edildi: {videoId}");
-
-            try
-            {
-                var videoRequest = _youtubeService.Videos.List("snippet,statistics");
-                videoRequest.Id = videoId;
-                var response = await videoRequest.ExecuteAsync();
-                var video = response.Items?.FirstOrDefault();
-                
-                if (video == null) 
-                {
-                    _logger.LogWarning($"YouTube API'den video bulunamadı: {videoId}");
-                    return null;
-                }
-
-                _logger.LogInformation($"Video bulundu: Title={video.Snippet?.Title}, Channel={video.Snippet?.ChannelTitle}");
-
-                var title = video.Snippet?.Title ?? "";
-                var desc = video.Snippet?.Description ?? "";
-                
-                var isMacIleIlgili = IsMacIleIlgiliVideo(title, desc, macBilgisi);
-                _logger.LogInformation($"Video maçla ilişkili mi: {isMacIleIlgili}");
-
-                if (!isMacIleIlgili)
-                {
-                    _logger.LogInformation($"Video maçla ilişkili değil görünüyor: {title}");
-                    // Yine de yorum olarak ekle - kullanıcı manuel olarak eklemek istiyor
-                }
 
                 var yorum = new BulunanYorum
                 {

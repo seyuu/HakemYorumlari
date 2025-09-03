@@ -14,7 +14,7 @@ namespace HakemYorumlari.Services
             ["beinsports"] = new TVKanalConfig
             {
                 BaseUrl = "https://www.beinsports.com.tr",
-                SearchPath = "/arama?q={0}",
+                SearchPath = "/SiteSearch?q={0}", // Güncellendi
                 VideoSelector = ".video-item",
                 TitleSelector = ".video-title",
                 LinkSelector = "a",
@@ -23,7 +23,7 @@ namespace HakemYorumlari.Services
             ["trtspor"] = new TVKanalConfig
             {
                 BaseUrl = "https://www.trtspor.com.tr",
-                SearchPath = "/arama/{0}",
+                SearchPath = "/arama/{0}/1", // Güncellendi
                 VideoSelector = ".haber-item",
                 TitleSelector = ".baslik",
                 LinkSelector = "a"
@@ -31,7 +31,7 @@ namespace HakemYorumlari.Services
             ["aspor"] = new TVKanalConfig
             {
                 BaseUrl = "https://www.aspor.com.tr",
-                SearchPath = "/arama?q={0}",
+                SearchPath = "/arama?query={0}", // Güncellendi
                 VideoSelector = ".video-card",
                 TitleSelector = ".title",
                 LinkSelector = "a"
@@ -39,7 +39,7 @@ namespace HakemYorumlari.Services
             ["fanatik"] = new TVKanalConfig
             {
                 BaseUrl = "https://www.fanatik.com.tr",
-                SearchPath = "/arama?q={0}",
+                SearchPath = "/arama?q={0}", // Değişiklik yok
                 VideoSelector = ".news-item",
                 TitleSelector = ".title",
                 LinkSelector = "a"
@@ -47,7 +47,7 @@ namespace HakemYorumlari.Services
             ["fotomac"] = new TVKanalConfig
             {
                 BaseUrl = "https://www.fotomac.com.tr",
-                SearchPath = "/arama/{0}",
+                SearchPath = "/arama?query={0}", // Güncellendi
                 VideoSelector = ".haber-item",
                 TitleSelector = ".baslik",
                 LinkSelector = "a"
