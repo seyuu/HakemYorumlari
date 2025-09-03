@@ -26,9 +26,6 @@
     <PackageReference Include="Google.Apis.Auth" Version="1.70.0" />
   </ItemGroup>
 
-  <!-- Sadece özel dosyalar için Content Include -->
-  <ItemGroup>
-    <Content Include="hakemyorumlama-2bf8fa35cf41.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
+  <!-- JSON credentials dosyası kaldırıldı - Cloud Run'da environment variable kullanılacak -->
 
 </Project>

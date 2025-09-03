@@ -1,19 +1,18 @@
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-WORKDIR /app
-EXPOSE 8080
-
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-COPY ["HakemYorumlari.csproj", "."]
-RUN dotnet restore "HakemYorumlari.csproj"
-COPY . .
-WORKDIR "/src"
-RUN dotnet build "HakemYorumlari.csproj" -c Release -o /app/build
 
-FROM build AS publish
-RUN dotnet publish "HakemYorumlari.csproj" -c Release -o /app/publish
+# Copy csproj and restore (for better layer caching)
+COPY HakemYorumlari.csproj ./
+RUN dotnet restore
 
-FROM base AS final
+# Copy everything else and build
+COPY . ./
+RUN dotnet publish -c Release -o /app/out --no-restore /p:UseAppHost=false
+
+# Build runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
-COPY --from=publish /app/publish .
+EXPOSE 8080
+ENV PORT=8080
+COPY --from=build /app/out .
 ENTRYPOINT ["dotnet", "HakemYorumlari.dll"]
