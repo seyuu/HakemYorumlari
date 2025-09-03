@@ -124,23 +124,13 @@ namespace HakemYorumlari.Services
         // Hafta hesaplama metodu
         private int GetCurrentWeek(DateTime macTarihi)
         {
-            // TFF'deki hafta sistemi:
-            // 08.08.2025 = 1. hafta
-            // 15.08.2025 = 2. hafta
-            // 22.08.2025 = 3. hafta
-            // vs.
+            // Dinamik sezon başlangıcı hesapla
+            var yil = macTarihi.Year;
+            var sezonBaslangici = macTarihi.Month >= 8 ? new DateTime(yil, 8, 1) : new DateTime(yil - 1, 8, 1);
             
-            // Süper Lig sezon başlangıcı (8 Ağustos 2025)
-            var sezonBaslangici = new DateTime(2025, 8, 8);
-            
-            // Maç tarihi ile sezon başlangıcı arasındaki fark
             var fark = macTarihi - sezonBaslangici;
-            
-            // Hafta hesaplama (7 gün = 1 hafta)
             var hafta = (int)Math.Ceiling(fark.TotalDays / 7.0);
-            
-            // Minimum 1. hafta olsun
-            return Math.Max(1, hafta);
+            return Math.Max(1, Math.Min(hafta, 34)); // 34 hafta sınırı
         }
 
         private bool IsTeamMatch(string tffTeamName, string ourTeamName)

@@ -98,9 +98,18 @@ namespace HakemYorumlari.Services
 
         public async Task<bool> MacIcinYorumTopla(int macId)
         {
+            var mac = await _context.Maclar.FirstOrDefaultAsync(m => m.Id == macId);
+            
+            // Skor kontrolü ekle
+            if (mac?.Skor == "-" || string.IsNullOrEmpty(mac?.Skor))
+            {
+                _logger.LogInformation("Maç henüz oynanmadı, yorum toplama atlanıyor: {EvSahibi} vs {Deplasman}", mac?.EvSahibi, mac?.Deplasman);
+                return false;
+            }
+            
             try
             {
-                var mac = await _context.Maclar
+                 mac = await _context.Maclar
                     .Include(m => m.Pozisyonlar)
                     .ThenInclude(p => p.HakemYorumlari)
                     .FirstOrDefaultAsync(m => m.Id == macId);
@@ -290,7 +299,7 @@ namespace HakemYorumlari.Services
                 if (mac == null) return false;
 
                 var macBilgisi = $"{mac.EvSahibi} {mac.Deplasman}";
-                var yorum = await _youtubeService.VideoLinkindenTekYorum(youtubeUrl, macBilgisi);
+                var yorum = await _youtubeService.VideoLinkindenTekYorum(youtubeUrl, macBilgisi, mac.MacTarihi);
                 if (yorum == null)
                 {
                     _logger.LogWarning($"YouTube linkinden yorum bulunamadı (API). HTML fallback denenecek: {youtubeUrl}");
@@ -668,7 +677,7 @@ namespace HakemYorumlari.Services
             if (match.Success && int.TryParse(match.Groups[1].Value, out int dakika))
                 return dakika;
             
-            return Random.Shared.Next(1, 90); // Varsayılan rastgele dakika
+            return Random.Shared.Next(1, 90); // RASTGELE DAKİKA!
         }
         
         private string ConvertCssToXPath(string cssSelector)

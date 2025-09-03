@@ -142,14 +142,18 @@ namespace HakemYorumlari.Services
                     
                     if (!string.IsNullOrEmpty(evSahibiAdi) && !string.IsNullOrEmpty(deplasmanAdi))
                     {
-                        // Tarih parse et
-                        DateTime macTarihi = DateTime.Now;
-                        if (!string.IsNullOrEmpty(tarihMetni))
+                        // Tarih parse et - daha güvenli yaklaşım
+                        DateTime macTarihi;
+                        if (!string.IsNullOrEmpty(tarihMetni) && DateTime.TryParse(tarihMetni, out var parsedDate))
                         {
-                            if (DateTime.TryParse(tarihMetni, out var parsedDate))
-                            {
-                                macTarihi = parsedDate;
-                            }
+                            macTarihi = parsedDate;
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Maç tarihi parse edilemedi: {TarihMetni}, hafta {Hafta} kullanılarak tahmin ediliyor", tarihMetni, hafta);
+                            // Hafta bilgisine göre tarih hesapla
+                            var sezonBaslangici = new DateTime(DateTime.Now.Year, 8, 1);
+                            macTarihi = sezonBaslangici.AddDays((hafta - 1) * 7);
                         }
                         
                         // Skor bilgisini al
