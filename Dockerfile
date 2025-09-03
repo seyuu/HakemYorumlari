@@ -20,6 +20,5 @@ COPY hakemyorumlama-2bf8fa35cf41.json /app/hakemyorumlama-2bf8fa35cf41.json
 
 # Set the environment variable for Google Application Credentials
 ENV GOOGLE_APPLICATION_CREDENTIALS=/app/hakemyorumlama-2bf8fa35cf41.json
-
 COPY --from=build /app/out .
 ENTRYPOINT ["dotnet", "HakemYorumlari.dll"]
