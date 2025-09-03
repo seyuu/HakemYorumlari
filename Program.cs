@@ -5,6 +5,15 @@ using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Host validation'ı tamamen devre dışı bırak
+builder.WebHost.UseKestrel(options =>
+{
+    options.AllowSynchronousIO = true;
+});
+
+// AllowedHosts'u temizle
+builder.Configuration["AllowedHosts"] = "*";
+
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
@@ -62,74 +71,28 @@ builder.Services.AddHostedService<MacTakipBackgroundService>();
 
 var app = builder.Build();
 
-// Cloud Run için port yapılandırması
+// Cloud Run için port yapılandırması - EN BAŞTA!
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Logger.LogInformation($"Uygulama {port} portunda başlatılıyor...");
+
+// ÖNCE ForwardedHeaders - EN ÖNEMLİ!
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
+    RequireHeaderSymmetry = false,
+    ForwardLimit = null
+});
 
 // Cloud Run için doğru port binding
 app.Urls.Clear();
 app.Urls.Add($"http://0.0.0.0:{port}");
 
-// ForwardedHeaders middleware - sadece temel yapılandırma
-app.UseForwardedHeaders(new ForwardedHeadersOptions
+// Request logging ekle
+app.Use(async (context, next) =>
 {
-    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+    app.Logger.LogInformation($"İstek alındı: {context.Request.Method} {context.Request.Path} - Host: {context.Request.Host}");
+    await next();
 });
-
-app.Logger.LogInformation($"Port {port} dinleniyor...");
-
-// Google credentials dosyası kontrolü
-var credentialsPath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
-if (string.IsNullOrEmpty(credentialsPath))
-{
-    // Cloud Run'da farklı yollar dene
-    var alternativePaths = new[]
-    {
-        "/app/hakemyorumlama-2bf8fa35cf41.json",
-        "/workspace/hakemyorumlama-2bf8fa35cf41.json",
-        "./hakemyorumlama-2bf8fa35cf41.json"
-    };
-    
-    foreach (var altPath in alternativePaths)
-    {
-        if (File.Exists(altPath))
-        {
-            Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", altPath);
-            app.Logger.LogInformation($"GOOGLE_APPLICATION_CREDENTIALS ayarlandı: {altPath}");
-            break;
-        }
-    }
-}
-else
-{
-    app.Logger.LogInformation($"GOOGLE_APPLICATION_CREDENTIALS zaten ayarlı: {credentialsPath}");
-}
-
-// Database migration
-using (var scope = app.Services.CreateScope())
-{
-    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    try
-    {
-        context.Database.Migrate();
-        app.Logger.LogInformation("Veritabanı migration'ları başarıyla uygulandı");
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(ex, "Veritabanı migration hatası");
-    }
-}
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseDeveloperExceptionPage();
-}
-else
-{
-    app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
-}
 
 // Cloud Run'da HTTPS redirection kullanma
 // app.UseHttpsRedirection(); // Bu satırı kaldırdık
