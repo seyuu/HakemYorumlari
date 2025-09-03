@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using HakemYorumlari.Data;
 using HakemYorumlari.Services;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,6 +69,12 @@ app.Logger.LogInformation($"Uygulama {port} portunda başlatılıyor...");
 // Cloud Run için doğru port binding - EN BAŞTA!
 app.Urls.Clear();
 app.Urls.Add($"http://0.0.0.0:{port}");
+
+// Cloud Run için hostname yapılandırması ekle
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+});
 
 app.Logger.LogInformation($"Port {port} dinleniyor...");
 
