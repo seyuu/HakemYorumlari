@@ -4,7 +4,6 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <EnableDefaultContentItems>false</EnableDefaultContentItems>
   
     <!-- Publish Configuration -->
     <SelfContained>false</SelfContained>
@@ -27,15 +26,8 @@
     <PackageReference Include="Google.Apis.Auth" Version="1.70.0" />
   </ItemGroup>
 
-  <!-- Tüm gerekli dosyaları dahil et -->
+  <!-- Sadece özel dosyalar için Content Include -->
   <ItemGroup>
-    <Content Include="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Views\**\*" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Controllers\**\*" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Models\**\*" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Services\**\*" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Data\**\*" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Migrations\**\*" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="hakemyorumlama-2bf8fa35cf41.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
