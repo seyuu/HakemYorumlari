@@ -108,6 +108,21 @@
                             </a>
                         </div>
                     </div>
+                    
+                    <!-- Fikstür Güncelleme -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="alert alert-warning">
+                                <h6><i class="fas fa-exclamation-triangle"></i> Fikstür Güncelleme</h6>
+                                <p class="mb-3">TFF sitesinden güncel fikstürü çekmek için aşağıdaki butona tıklayın. Bu işlem mevcut tüm maçları siler ve yenilerini ekler.</p>
+                                <form method="post" action="@Url.Action("FiksturuGuncelle", "Admin")" onsubmit="return confirm('Tüm mevcut maçlar silinecek ve TFF sitesinden yeni fikstür çekilecek. Devam etmek istediğinizden emin misiniz?')">
+                                    <button type="submit" class="btn btn-warning">
+                                        <i class="fas fa-sync-alt"></i> TFF Fikstürünü Güncelle
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

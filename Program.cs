@@ -54,6 +54,7 @@ builder.Services.AddScoped<TVKanalScrapingService>();
 builder.Services.AddScoped<BeINSportsEmbedService>();
 builder.Services.AddScoped<SkorCekmeServisi>();
 builder.Services.AddScoped<PozisyonOtomatikTespitServisi>();
+builder.Services.AddScoped<FiksturGuncellemeServisi>();
 builder.Services.AddHostedService<MacTakipBackgroundService>();
 
 var app = builder.Build();

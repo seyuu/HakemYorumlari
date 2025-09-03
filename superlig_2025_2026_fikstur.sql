@@ -41,7 +41,7 @@ INSERT INTO Maclar (EvSahibi, Deplasman, MacTarihi, Hafta, Liga, Skor, Durum, Ot
 ('Trabzonspor', 'Antalyaspor', '2025-08-24 18:30:00', 3, 'Süper Lig', '-', 0, 1, 0),
 ('Kayserispor', 'Galatasaray', '2025-08-25 19:00:00', 3, 'Süper Lig', '-', 0, 1, 0),
 ('Fatih Karagümrük', 'Alanyaspor', '2025-08-23 19:00:00', 3, 'Süper Lig', '-', 0, 1, 0),
-('Gaziantep FK', 'Eyüpspor', '2025-08-23 21:30:00', 3, 'Süper Lig', '-', 0, 1, 0),
+('Gaziantep FK', 'Gençlerbirliği', '2025-08-23 21:30:00', 3, 'Süper Lig', '-', 0, 1, 0),
 ('Göztepe', 'Gençlerbirliği', '2025-08-23 21:30:00', 3, 'Süper Lig', '-', 0, 1, 0);
 
 -- 4. HAFTA (29 Ağustos - 1 Eylül 2025) - TFF Resmi Fikstürü

@@ -9,10 +9,12 @@ namespace HakemYorumlari.Controllers
     public class AdminController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly FiksturGuncellemeServisi _fiksturGuncellemeServisi;
 
-        public AdminController(ApplicationDbContext context)
+        public AdminController(ApplicationDbContext context, FiksturGuncellemeServisi fiksturGuncellemeServisi)
         {
             _context = context;
+            _fiksturGuncellemeServisi = fiksturGuncellemeServisi;
         }
 
         // Admin Dashboard
@@ -702,6 +704,31 @@ namespace HakemYorumlari.Controllers
             }
             
             return RedirectToAction("Maclar", new { hafta });
+        }
+
+        // Fikstür Güncelleme
+        [HttpPost]
+        public async Task<IActionResult> FiksturuGuncelle()
+        {
+            try
+            {
+                var result = await _fiksturGuncellemeServisi.TFFFiksturunuGuncelle();
+                
+                if (result)
+                {
+                    TempData["SuccessMessage"] = "TFF fikstürü başarıyla güncellendi!";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "TFF fikstürü güncellenirken hata oluştu!";
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "Fikstür güncellenirken hata: " + ex.Message;
+            }
+            
+            return RedirectToAction("Index");
         }
     }
 }
