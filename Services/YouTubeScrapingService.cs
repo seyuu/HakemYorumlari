@@ -86,6 +86,22 @@ namespace HakemYorumlari.Services
                 
                 // Önce GOOGLE_APPLICATION_CREDENTIALS dosya yolunu kontrol et
                 var credentialsPath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
+                _logger.LogInformation("GOOGLE_APPLICATION_CREDENTIALS environment variable: {Path}", credentialsPath ?? "NULL");
+                
+                // Mevcut dizini ve dosyaları listele
+                var currentDir = Directory.GetCurrentDirectory();
+                _logger.LogInformation("Current directory: {Dir}", currentDir);
+                
+                try
+                {
+                    var files = Directory.GetFiles(currentDir, "*.json");
+                    _logger.LogInformation("JSON files in current directory: {Files}", string.Join(", ", files));
+                }
+                catch (Exception dirEx)
+                {
+                    _logger.LogWarning(dirEx, "Directory listing hatası");
+                }
+                
                 if (!string.IsNullOrEmpty(credentialsPath))
                 {
                     _logger.LogInformation("GOOGLE_APPLICATION_CREDENTIALS bulundu: {Path}", credentialsPath);
@@ -93,28 +109,36 @@ namespace HakemYorumlari.Services
                     // Dosya var mı kontrol et
                     if (File.Exists(credentialsPath))
                     {
+                        _logger.LogInformation("Credentials dosyası bulundu, yükleniyor...");
                         credential = GoogleCredential.FromFile(credentialsPath)
                             .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                        _logger.LogInformation("Credentials başarıyla yüklendi");
                     }
                     else
                     {
                         _logger.LogWarning("GOOGLE_APPLICATION_CREDENTIALS dosyası bulunamadı: {Path}", credentialsPath);
+                        
                         // Cloud Run'da farklı yollar dene
                         var alternativePaths = new[]
                         {
                             "/workspace/hakemyorumlama-2bf8fa35cf41.json",
                             "/app/hakemyorumlama-2bf8fa35cf41.json",
                             "./hakemyorumlama-2bf8fa35cf41.json",
-                            "hakemyorumlama-2bf8fa35cf41.json"
+                            "hakemyorumlama-2bf8fa35cf41.json",
+                            "/workspace/hakemyorumlama-2bf8fa35cf41.json",
+                            "/app/hakemyorumlama-2bf8fa35cf41.json"
                         };
                         
+                        _logger.LogInformation("Alternatif yollar deneniyor...");
                         foreach (var altPath in alternativePaths)
                         {
+                            _logger.LogInformation("Kontrol ediliyor: {Path}", altPath);
                             if (File.Exists(altPath))
                             {
                                 _logger.LogInformation("Alternatif credentials dosyası bulundu: {Path}", altPath);
                                 credential = GoogleCredential.FromFile(altPath)
                                     .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                                _logger.LogInformation("Alternatif credentials başarıyla yüklendi");
                                 break;
                             }
                         }
@@ -123,31 +147,81 @@ namespace HakemYorumlari.Services
                         if (credential == null)
                         {
                             _logger.LogWarning("Hiçbir credentials dosyası bulunamadı, Application Default Credentials denenecek");
-                            credential = GoogleCredential.GetApplicationDefault()
-                                .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                            try
+                            {
+                                credential = GoogleCredential.GetApplicationDefault()
+                                    .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                                _logger.LogInformation("Application Default Credentials başarıyla yüklendi");
+                            }
+                            catch (Exception adcEx)
+                            {
+                                _logger.LogError(adcEx, "Application Default Credentials yüklenemedi: {Message}", adcEx.Message);
+                            }
                         }
                     }
                 }
                 else
                 {
                     _logger.LogWarning("GOOGLE_APPLICATION_CREDENTIALS bulunamadı, Application Default Credentials denenecek");
-                    credential = GoogleCredential.GetApplicationDefault()
-                        .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                    try
+                    {
+                        credential = GoogleCredential.GetApplicationDefault()
+                            .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                        _logger.LogInformation("Application Default Credentials başarıyla yüklendi");
+                    }
+                    catch (Exception adcEx)
+                    {
+                        _logger.LogError(adcEx, "Application Default Credentials yüklenemedi: {Message}", adcEx.Message);
+                    }
                 }
 
-            if (credential != null)
-            {
-                _youtubeService = new YouTubeService(new BaseClientService.Initializer()
+                if (credential != null)
                 {
-                    HttpClientInitializer = credential,
-                    ApplicationName = "HakemYorumlari"
-                });
-                _logger.LogInformation("YouTube servisi başarıyla başlatıldı.");
-            }
-            else
-            {
-                _logger.LogError("YouTube servisi NULL! Başlatılamadı.");
-            }
+                    _logger.LogInformation("YouTube servisi başlatılıyor...");
+                    _youtubeService = new YouTubeService(new BaseClientService.Initializer()
+                    {
+                        HttpClientInitializer = credential,
+                        ApplicationName = "HakemYorumlari"
+                    });
+                    _logger.LogInformation("YouTube servisi başarıyla başlatıldı.");
+                    
+                    // Test bağlantısı yap
+                    try
+                    {
+                        var testRequest = _youtubeService.Channels.List("snippet");
+                        testRequest.Mine = true;
+                        testRequest.MaxResults = 1;
+                        var testResponse = await testRequest.ExecuteAsync();
+                        _logger.LogInformation("YouTube API test bağlantısı başarılı");
+                    }
+                    catch (Exception testEx)
+                    {
+                        _logger.LogWarning(testEx, "YouTube API test bağlantısı başarısız: {Message}", testEx.Message);
+                    }
+                }
+                else
+                {
+                    _logger.LogError("YouTube servisi NULL! Credential bulunamadı.");
+                    
+                    // API Key ile fallback dene
+                    if (!string.IsNullOrEmpty(_apiKey))
+                    {
+                        _logger.LogInformation("API Key ile YouTube servisi deneniyor...");
+                        try
+                        {
+                            _youtubeService = new YouTubeService(new BaseClientService.Initializer()
+                            {
+                                ApiKey = _apiKey,
+                                ApplicationName = "HakemYorumlari"
+                            });
+                            _logger.LogInformation("API Key ile YouTube servisi başarıyla başlatıldı.");
+                        }
+                        catch (Exception apiKeyEx)
+                        {
+                            _logger.LogError(apiKeyEx, "API Key ile YouTube servisi başlatılamadı: {Message}", apiKeyEx.Message);
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -213,6 +287,7 @@ namespace HakemYorumlari.Services
             }
             
             _logger.LogInformation("YouTube servisi mevcut, kanal tarama başlıyor...");
+            _logger.LogInformation($"Toplam {_sporKanallari.Count} kanal taranacak");
 
             var bulunanYorumlar = new List<BulunanYorum>();
 
@@ -220,7 +295,7 @@ namespace HakemYorumlari.Services
             {
                 foreach (var kanal in _sporKanallari)
                 {
-                    _logger.LogInformation($"Kanal taranıyor: {kanal.Key}");
+                    _logger.LogInformation($"Kanal taranıyor: {kanal.Key} (ID: {kanal.Value.KanalId})");
                     
                     try
                     {
@@ -229,17 +304,22 @@ namespace HakemYorumlari.Services
                         
                         _logger.LogInformation($"{kanal.Key} kanalından {kanalYorumlari.Count} yorum bulundu");
                         
+                        // Her kanal arasında kısa bekleme
+                        await Task.Delay(1000);
+                        
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, $"{kanal.Key} kanalından yorum toplanırken hata oluştu");
+                        _logger.LogError(ex, $"{kanal.Key} kanalından yorum toplanırken hata oluştu: {ex.Message}");
                         // Bir kanalda hata olsa bile diğerlerini denemeye devam et
                     }
                 }
+                
+                _logger.LogInformation($"Toplam {bulunanYorumlar.Count} yorum bulundu");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "MacIcinKanalYorumlariniTopla metodunda genel hata oluştu");
+                _logger.LogError(ex, "MacIcinKanalYorumlariniTopla metodunda genel hata oluştu: {Message}", ex.Message);
             }
 
             return bulunanYorumlar;
@@ -322,40 +402,54 @@ namespace HakemYorumlari.Services
 
             try
             {
+                _logger.LogInformation($"{kanal.YorumcuAdi} kanalından yorum toplama başlatıldı");
+                
                 // 1. Playlist'ten video çek (eğer playlist varsa)
                 if (!string.IsNullOrEmpty(kanal.PlaylistId))
                 {
+                    _logger.LogInformation($"Playlist'ten video çekiliyor: {kanal.PlaylistId}");
                     var playlistVideolari = await PlaylistVideolariniGetir(kanal.PlaylistId, macTarihi);
+                    _logger.LogInformation($"Playlist'ten {playlistVideolari.Count} video bulundu");
+                    
                     foreach (var video in playlistVideolari)
                     {
                         if (IsMacIleIlgiliVideo(video.Snippet.Title, video.Snippet.Description, macBilgisi))
                         {
+                            _logger.LogInformation($"İlgili video bulundu: {video.Snippet.Title}");
                             var yorum = await VideoDetaylariniAl(video, macBilgisi, kanal);
                             if (yorum != null)
                             {
                                 yorumlar.Add(yorum);
+                                _logger.LogInformation($"Video yorumu eklendi: {yorum.Yorum.Substring(0, Math.Min(50, yorum.Yorum.Length))}...");
                             }
                         }
                     }
                 }
 
                 // 2. Kanal ID'den video çek
+                _logger.LogInformation($"Kanal ID'den video çekiliyor: {kanal.KanalId}");
                 var kanalVideolari = await KanalVideolariniGetir(kanal.KanalId, macTarihi, macBilgisi);
+                _logger.LogInformation($"Kanal'dan {kanalVideolari.Count} video bulundu");
+                
                 foreach (var video in kanalVideolari)
                 {
                     if (IsMacIleIlgiliVideo(video.Snippet.Title, video.Snippet.Description, macBilgisi))
                     {
+                        _logger.LogInformation($"İlgili video bulundu: {video.Snippet.Title}");
                         var yorum = await VideoDetaylariniAl(video, macBilgisi, kanal);
                         if (yorum != null)
                         {
                             yorumlar.Add(yorum);
+                            _logger.LogInformation($"Video yorumu eklendi: {yorum.Yorum.Substring(0, Math.Min(50, yorum.Yorum.Length))}...");
                         }
                     }
                 }
+                
+                _logger.LogInformation($"{kanal.YorumcuAdi} kanalından toplam {yorumlar.Count} yorum bulundu");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"{kanal.YorumcuAdi} kanalından yorum toplama hatası");
+                _logger.LogError(ex, $"{kanal.YorumcuAdi} kanalından yorum toplama hatası: {ex.Message}");
             }
 
             return yorumlar;
