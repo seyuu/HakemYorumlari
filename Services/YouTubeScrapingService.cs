@@ -82,7 +82,7 @@ namespace HakemYorumlari.Services
 
             try
             {
-                GoogleCredential credential = null;
+                GoogleCredential? credential = null;
                 
                 // Önce GOOGLE_APPLICATION_CREDENTIALS dosya yolunu kontrol et
                 var credentialsPath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
@@ -184,20 +184,6 @@ namespace HakemYorumlari.Services
                         ApplicationName = "HakemYorumlari"
                     });
                     _logger.LogInformation("YouTube servisi başarıyla başlatıldı.");
-                    
-                    // Test bağlantısı yap
-                    try
-                    {
-                        var testRequest = _youtubeService.Channels.List("snippet");
-                        testRequest.Mine = true;
-                        testRequest.MaxResults = 1;
-                        var testResponse = await testRequest.ExecuteAsync();
-                        _logger.LogInformation("YouTube API test bağlantısı başarılı");
-                    }
-                    catch (Exception testEx)
-                    {
-                        _logger.LogWarning(testEx, "YouTube API test bağlantısı başarısız: {Message}", testEx.Message);
-                    }
                 }
                 else
                 {

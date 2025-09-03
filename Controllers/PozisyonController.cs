@@ -8,10 +8,12 @@ namespace HakemYorumlari.Controllers
     public class PozisyonController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<PozisyonController> _logger;
 
-        public PozisyonController(ApplicationDbContext context)
+        public PozisyonController(ApplicationDbContext context, ILogger<PozisyonController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         // GET: Pozisyon
@@ -207,6 +209,7 @@ namespace HakemYorumlari.Controllers
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Pozisyon güncellenirken hata oluştu");
                 // ViewBag'leri tekrar set et
                 if (pozisyon.MacId > 0)
                 {

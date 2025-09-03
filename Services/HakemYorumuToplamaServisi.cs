@@ -131,7 +131,7 @@ namespace HakemYorumlari.Services
                 
                 try
                 {
-                    var youtubeYorumlari = await _youtubeService.MacIcinKanalYorumlariniTopla(macBilgisi, mac.MacTarihi);
+                    var youtubeYorumlari = await _youtubeService!.MacIcinKanalYorumlariniTopla(macBilgisi, mac.MacTarihi);
                     bulunanYorumlar.AddRange(youtubeYorumlari);
                     _logger.LogInformation($"YouTube kanallarından {youtubeYorumlari.Count} yorum bulundu.");
                     
