@@ -11,12 +11,14 @@ namespace HakemYorumlari.Controllers
         private readonly ApplicationDbContext _context;
         private readonly FiksturGuncellemeServisi _fiksturGuncellemeServisi;
         private readonly YouTubeScrapingService _youtubeService;
+        private readonly HakemYorumuToplamaServisi _hakemYorumuToplamaServisi;
 
-        public AdminController(ApplicationDbContext context, FiksturGuncellemeServisi fiksturGuncellemeServisi, YouTubeScrapingService youtubeService)
+        public AdminController(ApplicationDbContext context, FiksturGuncellemeServisi fiksturGuncellemeServisi, YouTubeScrapingService youtubeService, HakemYorumuToplamaServisi hakemYorumuToplamaServisi)
         {
             _context = context;
             _fiksturGuncellemeServisi = fiksturGuncellemeServisi;
             _youtubeService = youtubeService;
+            _hakemYorumuToplamaServisi = hakemYorumuToplamaServisi;
         }
 
         // Admin Dashboard
@@ -313,9 +315,7 @@ namespace HakemYorumlari.Controllers
         [HttpPost]
         public async Task<IActionResult> YorumTopla(int macId)
         {
-            var yorumServisi = HttpContext.RequestServices.GetRequiredService<Services.HakemYorumuToplamaServisi>();
-            
-            var basarili = await yorumServisi.MacIcinYorumTopla(macId);
+            var basarili = await _hakemYorumuToplamaServisi.MacIcinYorumTopla(macId);
             
             if (basarili)
             {
@@ -504,12 +504,11 @@ namespace HakemYorumlari.Controllers
                                !m.YorumlarToplandi)
                     .ToListAsync();
 
-                var yorumServisi = HttpContext.RequestServices.GetRequiredService<HakemYorumuToplamaServisi>();
                 int basariliSayisi = 0;
 
                 foreach (var mac in haftaninMaclari)
                 {
-                    var basarili = await yorumServisi.MacIcinYorumTopla(mac.Id);
+                    var basarili = await _hakemYorumuToplamaServisi.MacIcinYorumTopla(mac.Id);
                     if (basarili)
                     {
                         basariliSayisi++;
@@ -665,8 +664,7 @@ namespace HakemYorumlari.Controllers
         {
             try
             {
-                var yorumServisi = HttpContext.RequestServices.GetRequiredService<HakemYorumuToplamaServisi>();
-                var basarili = await yorumServisi.MacIcinYouTubeLinktenYorumEkle(macId, youtubeUrl);
+                var basarili = await _hakemYorumuToplamaServisi.MacIcinYouTubeLinktenYorumEkle(macId, youtubeUrl);
                 if (basarili)
                 {
                     TempData["Success"] = "YouTube linkinden yorum eklendi.";
@@ -688,8 +686,7 @@ namespace HakemYorumlari.Controllers
         {
             try
             {
-                var yorumServisi = HttpContext.RequestServices.GetRequiredService<HakemYorumuToplamaServisi>();
-                var basarili = await yorumServisi.MacIcinYouTubeTranscripttenPozisyonEkle(macId, youtubeUrl);
+                var basarili = await _hakemYorumuToplamaServisi.MacIcinYouTubeTranscripttenPozisyonEkle(macId, youtubeUrl);
                 
                 if (basarili)
                 {

@@ -7,17 +7,18 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
-// ***** Buradaki kısım ÖNEMLİ! HakemYorumuToplamaServisi için Typed HttpClient kaydı *****
-// Bu, hem HakemYorumuToplamaServisi'ni DI'ya kaydeder hem de
-// constructor'ında HttpClient beklediğinde otomatik olarak sağlar.
-// OAuth2 kullanarak YouTube API'ye erişim sağlar.
+// HttpClient servisleri
 builder.Services.AddHttpClient<HakemYorumlari.Services.HakemYorumuToplamaServisi>(client =>
 {
     client.BaseAddress = new Uri("https://www.googleapis.com/youtube/v3/");
     client.DefaultRequestHeaders.Add("Accept", "application/json");
-    
-    // OAuth2 için Authorization header'ı runtime'da eklenir
-    // Burada sadece temel yapılandırma yapıyoruz
+});
+
+builder.Services.AddHttpClient<TVKanalScrapingService>(client =>
+{
+    client.DefaultRequestHeaders.Add("User-Agent", 
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+    client.Timeout = TimeSpan.FromSeconds(30);
 });
 
 // Entity Framework - Production için özel yapılandırma
@@ -51,6 +52,7 @@ else
 // Servisleri ekle
 builder.Services.AddScoped<YouTubeScrapingService>();
 builder.Services.AddScoped<TVKanalScrapingService>();
+builder.Services.AddScoped<HakemYorumlari.Services.HakemYorumuToplamaServisi>();
 builder.Services.AddScoped<BeINSportsEmbedService>();
 builder.Services.AddScoped<SkorCekmeServisi>();
 builder.Services.AddScoped<PozisyonOtomatikTespitServisi>();
