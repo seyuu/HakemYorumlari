@@ -74,9 +74,20 @@ namespace HakemYorumlari.Services
             _httpClient = httpClient;
             _logger = logger;
             
-            // User-Agent ayarla
+            // User-Agent ve diğer header'ları ayarla
+            _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Add("User-Agent", 
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            _httpClient.DefaultRequestHeaders.Add("Accept", 
+                "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
+            _httpClient.DefaultRequestHeaders.Add("Accept-Language", "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7");
+            _httpClient.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate, br");
+            _httpClient.DefaultRequestHeaders.Add("DNT", "1");
+            _httpClient.DefaultRequestHeaders.Add("Connection", "keep-alive");
+            _httpClient.DefaultRequestHeaders.Add("Upgrade-Insecure-Requests", "1");
+            
+            // Timeout ayarla
+            _httpClient.Timeout = TimeSpan.FromSeconds(30);
         }
         
         public async Task<List<BulunanYorum>> TVKanalindanYorumAra(string kanalAdi, string macBilgisi)
@@ -99,46 +110,75 @@ namespace HakemYorumlari.Services
                     var searchUrl = kanal.BaseUrl + string.Format(kanal.SearchPath, Uri.EscapeDataString(aramaTerimi));
                     _logger.LogInformation($"{kanalAdi} araması: {aramaTerimi}");
                     
-                    var response = await _httpClient.GetStringAsync(searchUrl);
-                    var doc = new HtmlDocument();
-                    doc.LoadHtml(response);
-                    
-                    var videos = doc.DocumentNode.SelectNodes(kanal.VideoSelector);
-                    
-                    if (videos != null)
+                    try
                     {
+                        var response = await _httpClient.GetStringAsync(searchUrl);
+                        var doc = new HtmlDocument();
+                        doc.LoadHtml(response);
+                        
+                        // CSS selector'ı XPath'e çevir
+                        var xpathSelector = ConvertCssToXPath(kanal.VideoSelector);
+                        var videos = doc.DocumentNode.SelectNodes(xpathSelector);
+                        
+                        if (videos == null)
+                        {
+                            _logger.LogWarning($"{kanalAdi} için video elementleri bulunamadı. XPath: {xpathSelector}");
+                            continue;
+                        }
+                    
                         foreach (var video in videos.Take(5))
                         {
-                            var titleNode = video.SelectSingleNode(kanal.TitleSelector);
-                            var linkNode = video.SelectSingleNode(kanal.LinkSelector);
-                            
-                            if (titleNode != null && IsHakemYorumuIceriyor(titleNode.InnerText))
+                            try
                             {
-                                var link = linkNode?.GetAttributeValue("href", "");
-                                if (!string.IsNullOrEmpty(link) && !link.StartsWith("http"))
+                                var titleXPath = ConvertCssToXPath(kanal.TitleSelector);
+                                var linkXPath = ConvertCssToXPath(kanal.LinkSelector);
+                                var titleNode = video.SelectSingleNode(titleXPath);
+                                var linkNode = video.SelectSingleNode(linkXPath);
+                                
+                                if (titleNode != null && IsHakemYorumuIceriyor(titleNode.InnerText))
                                 {
-                                    link = kanal.BaseUrl + link;
+                                    var link = linkNode?.GetAttributeValue("href", "");
+                                    if (!string.IsNullOrEmpty(link) && !link.StartsWith("http"))
+                                    {
+                                        link = kanal.BaseUrl + link;
+                                    }
+                                    
+                                    var yorum = new BulunanYorum
+                                    {
+                                        YorumcuAdi = ExtractYorumcu(titleNode.InnerText) ?? "TV Yorumcusu",
+                                        Yorum = titleNode.InnerText.Trim(),
+                                        DogruKarar = AnalyzeDogruKarar(titleNode.InnerText),
+                                        KaynakLink = link,
+                                        KaynakTuru = "TV_Web",
+                                        Kanal = kanalAdi,
+                                        BulunduguSite = kanalAdi,
+                                        BulunmaTarihi = DateTime.Now
+                                    };
+                                    
+                                    yorumlar.Add(yorum);
                                 }
-                                
-                                var yorum = new BulunanYorum
-                                {
-                                    YorumcuAdi = ExtractYorumcu(titleNode.InnerText) ?? "TV Yorumcusu",
-                                    Yorum = titleNode.InnerText.Trim(),
-                                    DogruKarar = AnalyzeDogruKarar(titleNode.InnerText),
-                                    KaynakLink = link,
-                                    KaynakTuru = "TV_Web",
-                                    Kanal = kanalAdi,
-                                    BulunduguSite = kanalAdi,
-                                    BulunmaTarihi = DateTime.Now
-                                };
-                                
-                                yorumlar.Add(yorum);
+                            }
+                            catch (Exception videoEx)
+                            {
+                                _logger.LogWarning(videoEx, $"{kanalAdi} video işleme hatası: {videoEx.Message}");
                             }
                         }
+                        
+                        // Rate limiting
+                        await Task.Delay(2000);
                     }
-                    
-                    // Rate limiting
-                    await Task.Delay(2000);
+                    catch (HttpRequestException httpEx)
+                    {
+                        _logger.LogError(httpEx, $"{kanalAdi} HTTP isteği hatası: {httpEx.Message}");
+                    }
+                    catch (TaskCanceledException timeoutEx)
+                    {
+                        _logger.LogError(timeoutEx, $"{kanalAdi} timeout hatası: {timeoutEx.Message}");
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"{kanalAdi} genel hata: {ex.Message}");
+                    }
                 }
             }
             catch (Exception ex)
@@ -210,6 +250,39 @@ namespace HakemYorumlari.Services
             var yanlisSayisi = yanlisKelimeler.Count(kelime => lowerText.Contains(kelime));
             
             return dogruSayisi >= yanlisSayisi;
+        }
+        
+        private string ConvertCssToXPath(string cssSelector)
+        {
+            if (string.IsNullOrEmpty(cssSelector))
+                return "//*";
+                
+            // Basit CSS selector'ları XPath'e çevir
+            var xpath = cssSelector
+                .Replace(".", "//*[@class='")
+                .Replace("#", "//*[@id='")
+                .Replace(" ", "//")
+                .Replace(">", "/");
+            
+            // Class selector'ları düzelt
+            if (cssSelector.StartsWith("."))
+            {
+                var className = cssSelector.Substring(1);
+                xpath = $"//*[contains(@class, '{className}')]";
+            }
+            // ID selector'ları düzelt
+            else if (cssSelector.StartsWith("#"))
+            {
+                var idName = cssSelector.Substring(1);
+                xpath = $"//*[@id='{idName}']";
+            }
+            // Tag selector'ları düzelt
+            else if (!cssSelector.Contains(".") && !cssSelector.Contains("#"))
+            {
+                xpath = $"//{cssSelector}";
+            }
+            
+            return xpath;
         }
     }
     

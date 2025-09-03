@@ -89,8 +89,44 @@ namespace HakemYorumlari.Services
                 if (!string.IsNullOrEmpty(credentialsPath))
                 {
                     _logger.LogInformation("GOOGLE_APPLICATION_CREDENTIALS bulundu: {Path}", credentialsPath);
-                    credential = GoogleCredential.FromFile(credentialsPath)
-                        .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                    
+                    // Dosya var mı kontrol et
+                    if (File.Exists(credentialsPath))
+                    {
+                        credential = GoogleCredential.FromFile(credentialsPath)
+                            .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("GOOGLE_APPLICATION_CREDENTIALS dosyası bulunamadı: {Path}", credentialsPath);
+                        // Cloud Run'da farklı yollar dene
+                        var alternativePaths = new[]
+                        {
+                            "/workspace/hakemyorumlama-2bf8fa35cf41.json",
+                            "/app/hakemyorumlama-2bf8fa35cf41.json",
+                            "./hakemyorumlama-2bf8fa35cf41.json",
+                            "hakemyorumlama-2bf8fa35cf41.json"
+                        };
+                        
+                        foreach (var altPath in alternativePaths)
+                        {
+                            if (File.Exists(altPath))
+                            {
+                                _logger.LogInformation("Alternatif credentials dosyası bulundu: {Path}", altPath);
+                                credential = GoogleCredential.FromFile(altPath)
+                                    .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                                break;
+                            }
+                        }
+                        
+                        // Hiçbir dosya bulunamazsa Application Default Credentials dene
+                        if (credential == null)
+                        {
+                            _logger.LogWarning("Hiçbir credentials dosyası bulunamadı, Application Default Credentials denenecek");
+                            credential = GoogleCredential.GetApplicationDefault()
+                                .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
+                        }
+                    }
                 }
                 else
                 {

@@ -81,8 +81,19 @@ namespace HakemYorumlari.Services
             _tvKanalService = tvKanalService;
             
             // HttpClient ayarları
+            _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Add("User-Agent", 
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            _httpClient.DefaultRequestHeaders.Add("Accept", 
+                "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8");
+            _httpClient.DefaultRequestHeaders.Add("Accept-Language", "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7");
+            _httpClient.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate, br");
+            _httpClient.DefaultRequestHeaders.Add("DNT", "1");
+            _httpClient.DefaultRequestHeaders.Add("Connection", "keep-alive");
+            _httpClient.DefaultRequestHeaders.Add("Upgrade-Insecure-Requests", "1");
+            
+            // Timeout ayarla
+            _httpClient.Timeout = TimeSpan.FromSeconds(30);
         }
 
         public async Task<bool> MacIcinYorumTopla(int macId)
@@ -379,49 +390,80 @@ namespace HakemYorumlari.Services
                 
                 _logger.LogInformation($"Web scraping: {searchUrl}");
                 
-                var response = await _httpClient.GetStringAsync(searchUrl);
-                var doc = new HtmlDocument();
-                doc.LoadHtml(response);
-                
-                var articles = doc.DocumentNode.SelectNodes(siteConfig.ArticleSelector);
-                if (articles == null) return bulunanYorumlar;
-                
-                foreach (var article in articles.Take(5)) // İlk 5 sonuç
+                try
                 {
-                    var titleNode = article.SelectSingleNode(siteConfig.TitleSelector);
-                    var contentNode = article.SelectSingleNode(siteConfig.ContentSelector);
-                    var linkNode = article.SelectSingleNode(siteConfig.LinkSelector);
+                    var response = await _httpClient.GetStringAsync(searchUrl);
+                    var doc = new HtmlDocument();
+                    doc.LoadHtml(response);
                     
-                    if (titleNode == null) continue;
-                    
-                    var title = titleNode.InnerText?.Trim();
-                    var content = contentNode?.InnerText?.Trim() ?? "";
-                    var link = linkNode?.GetAttributeValue("href", "");
-                    
-                    // Bağlantıyı tam URL'ye çevir
-                    if (!string.IsNullOrEmpty(link) && !link.StartsWith("http"))
+                    // CSS selector'ı XPath'e çevir
+                    var articleXPath = ConvertCssToXPath(siteConfig.ArticleSelector);
+                    var articles = doc.DocumentNode.SelectNodes(articleXPath);
+                    if (articles == null) 
                     {
-                        link = siteConfig.BaseUrl + (link.StartsWith("/") ? link : "/" + link);
+                        _logger.LogWarning($"{siteKey} için makale elementleri bulunamadı. XPath: {articleXPath}");
+                        return bulunanYorumlar;
                     }
-                    
-                    // Hakem yorumu içeriyor mu kontrol et
-                    if (IsHakemYorumuIceriyor(title + " " + content))
+                
+                    foreach (var article in articles.Take(5)) // İlk 5 sonuç
                     {
-                        var yorumcu = ExtractYorumcu(title + " " + content);
-                        var dogruKarar = AnalyzeDogruKarar(title + " " + content);
-                        
-                        bulunanYorumlar.Add(new BulunanYorum
+                        try
                         {
-                            YorumcuAdi = yorumcu ?? "Bilinmeyen",
-                            Yorum = title + (string.IsNullOrEmpty(content) ? "" : " - " + content),
-                            DogruKarar = dogruKarar,
-                            Kanal = siteKey,
-                            KaynakLink = link,
-                            KaynakTuru = "Gazete",
-                            BulunduguSite = siteKey,
-                            BulunmaTarihi = DateTime.Now
-                        });
+                            var titleXPath = ConvertCssToXPath(siteConfig.TitleSelector);
+                            var contentXPath = ConvertCssToXPath(siteConfig.ContentSelector);
+                            var linkXPath = ConvertCssToXPath(siteConfig.LinkSelector);
+                            var titleNode = article.SelectSingleNode(titleXPath);
+                            var contentNode = article.SelectSingleNode(contentXPath);
+                            var linkNode = article.SelectSingleNode(linkXPath);
+                            
+                            if (titleNode == null) continue;
+                            
+                            var title = titleNode.InnerText?.Trim();
+                            var content = contentNode?.InnerText?.Trim() ?? "";
+                            var link = linkNode?.GetAttributeValue("href", "");
+                            
+                            // Bağlantıyı tam URL'ye çevir
+                            if (!string.IsNullOrEmpty(link) && !link.StartsWith("http"))
+                            {
+                                link = siteConfig.BaseUrl + (link.StartsWith("/") ? link : "/" + link);
+                            }
+                            
+                            // Hakem yorumu içeriyor mu kontrol et
+                            if (IsHakemYorumuIceriyor(title + " " + content))
+                            {
+                                var yorumcu = ExtractYorumcu(title + " " + content);
+                                var dogruKarar = AnalyzeDogruKarar(title + " " + content);
+                                
+                                bulunanYorumlar.Add(new BulunanYorum
+                                {
+                                    YorumcuAdi = yorumcu ?? "Bilinmeyen",
+                                    Yorum = title + (string.IsNullOrEmpty(content) ? "" : " - " + content),
+                                    DogruKarar = dogruKarar,
+                                    Kanal = siteKey,
+                                    KaynakLink = link,
+                                    KaynakTuru = "Gazete",
+                                    BulunduguSite = siteKey,
+                                    BulunmaTarihi = DateTime.Now
+                                });
+                            }
+                        }
+                        catch (Exception articleEx)
+                        {
+                            _logger.LogWarning(articleEx, $"{siteKey} makale işleme hatası: {articleEx.Message}");
+                        }
                     }
+                }
+                catch (HttpRequestException httpEx)
+                {
+                    _logger.LogError(httpEx, $"{siteKey} HTTP isteği hatası: {httpEx.Message}");
+                }
+                catch (TaskCanceledException timeoutEx)
+                {
+                    _logger.LogError(timeoutEx, $"{siteKey} timeout hatası: {timeoutEx.Message}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"{siteKey} genel hata: {ex.Message}");
                 }
             }
             catch (Exception ex)
@@ -627,6 +669,39 @@ namespace HakemYorumlari.Services
                 return dakika;
             
             return Random.Shared.Next(1, 90); // Varsayılan rastgele dakika
+        }
+        
+        private string ConvertCssToXPath(string cssSelector)
+        {
+            if (string.IsNullOrEmpty(cssSelector))
+                return "//*";
+                
+            // Basit CSS selector'ları XPath'e çevir
+            var xpath = cssSelector
+                .Replace(".", "//*[@class='")
+                .Replace("#", "//*[@id='")
+                .Replace(" ", "//")
+                .Replace(">", "/");
+            
+            // Class selector'ları düzelt
+            if (cssSelector.StartsWith("."))
+            {
+                var className = cssSelector.Substring(1);
+                xpath = $"//*[contains(@class, '{className}')]";
+            }
+            // ID selector'ları düzelt
+            else if (cssSelector.StartsWith("#"))
+            {
+                var idName = cssSelector.Substring(1);
+                xpath = $"//*[@id='{idName}']";
+            }
+            // Tag selector'ları düzelt
+            else if (!cssSelector.Contains(".") && !cssSelector.Contains("#"))
+            {
+                xpath = $"//{cssSelector}";
+            }
+            
+            return xpath;
         }
     }
 
