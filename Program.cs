@@ -73,7 +73,16 @@ app.Urls.Add($"http://0.0.0.0:{port}");
 // Cloud Run için hostname yapılandırması ekle
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
-    ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
+    RequireHeaderSymmetry = false,
+    ForwardLimit = null
+});
+
+// Host header validation'ını devre dışı bırak
+app.Use(async (context, next) =>
+{
+    context.Request.Host = new HostString("hakemyorumlama-783732375215.europe-west1.run.app");
+    await next();
 });
 
 app.Logger.LogInformation($"Port {port} dinleniyor...");
