@@ -2,16 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using HakemYorumlari.Data;
 using HakemYorumlari.Services;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.HostFiltering;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Host filtering'i devre dışı bırak
-builder.Services.Configure<HostFilteringOptions>(options =>
-{
-    options.AllowedHosts.Clear();
-    options.AllowEmptyHosts = true;
-});
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -70,31 +62,18 @@ builder.Services.AddHostedService<MacTakipBackgroundService>();
 
 var app = builder.Build();
 
-// Cloud Run için port yapılandırması - EN BAŞTA!
+// Cloud Run için port yapılandırması
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Logger.LogInformation($"Uygulama {port} portunda başlatılıyor...");
 
-// Cloud Run için doğru port binding - EN BAŞTA!
+// Cloud Run için doğru port binding
 app.Urls.Clear();
 app.Urls.Add($"http://0.0.0.0:{port}");
 
-// Cloud Run için hostname yapılandırması ekle
+// ForwardedHeaders middleware - sadece temel yapılandırma
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
-    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
-    RequireHeaderSymmetry = false,
-    ForwardLimit = null,
-    KnownNetworks = { },
-    KnownProxies = { }
-});
-
-// Host header validation'ını tamamen devre dışı bırak
-app.Use(async (context, next) =>
-{
-    context.Request.Host = new HostString("hakemyorumlama-783732375215.europe-west1.run.app");
-    context.Request.Headers.Remove("Host");
-    context.Request.Headers.Add("Host", "hakemyorumlama-783732375215.europe-west1.run.app");
-    await next();
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
 
 app.Logger.LogInformation($"Port {port} dinleniyor...");
