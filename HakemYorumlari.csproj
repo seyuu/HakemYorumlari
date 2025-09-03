@@ -27,24 +27,9 @@
     <PackageReference Include="Google.Apis.Auth" Version="1.70.0" />
   </ItemGroup>
 
-  <!-- Tüm gerekli dosyaları dahil et -->
+  <!-- Google credentials dosyasını dahil et -->
   <ItemGroup>
-    <Content Include="wwwroot\**\*" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Views\**\*" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Controllers\**\*" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Models\**\*" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Services\**\*" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Data\**\*" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Migrations\**\*" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="hakemyorumlama-2bf8fa35cf41.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
-  <!-- Buildpacks için Google credentials dosyasını dahil et -->
-  <ItemGroup>
-    <None Include="hakemyorumlama-2bf8fa35cf41.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </None>
   </ItemGroup>
 
 </Project>
