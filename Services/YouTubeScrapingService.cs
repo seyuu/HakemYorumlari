@@ -262,7 +262,7 @@ namespace HakemYorumlari.Services
         /// <summary>
         /// Maç için direkt kanallardan yorum toplar
         /// </summary>
-        public async Task<List<BulunanYorum>> MacIcinKanalYorumlariniTopla(string macBilgisi, DateTime macTarihi)
+        public async Task<List<BulunanYorum>> MacIcinKanalYorumlariniTopla(string macBilgisi, DateTime macTarihi, int macId)
         {
             _logger.LogInformation($"MacIcinKanalYorumlariniTopla başlatıldı: MacBilgisi={macBilgisi}, Tarih={macTarihi:dd.MM.yyyy}");
             
@@ -285,7 +285,7 @@ namespace HakemYorumlari.Services
                     
                     try
                     {
-                        var kanalYorumlari = await KanaldanYorumTopla(kanal.Value, macBilgisi, macTarihi);
+                        var kanalYorumlari = await KanaldanYorumTopla(kanal.Value, macBilgisi, macTarihi, macId);
                         bulunanYorumlar.AddRange(kanalYorumlari);
                         
                         _logger.LogInformation($"{kanal.Key} kanalından {kanalYorumlari.Count} yorum bulundu");
@@ -382,7 +382,7 @@ namespace HakemYorumlari.Services
             }
         }
 
-        private async Task<List<BulunanYorum>> KanaldanYorumTopla(KanalBilgisi kanal, string macBilgisi, DateTime macTarihi)
+        private async Task<List<BulunanYorum>> KanaldanYorumTopla(KanalBilgisi kanal, string macBilgisi, DateTime macTarihi, int macId)
         {
             var yorumlar = new List<BulunanYorum>();
 
@@ -402,7 +402,7 @@ namespace HakemYorumlari.Services
                         if (IsMacIleIlgiliVideo(video.Snippet.Title, video.Snippet.Description, macBilgisi, macTarihi))
                         {
                             _logger.LogInformation($"İlgili video bulundu: {video.Snippet.Title}");
-                            var yorum = await VideoDetaylariniAl(video, macBilgisi, kanal);
+                            var yorum = await VideoDetaylariniAl(video, macBilgisi, kanal, macId);
                             if (yorum != null)
                             {
                                 yorumlar.Add(yorum);
@@ -422,7 +422,7 @@ namespace HakemYorumlari.Services
                     if (IsMacIleIlgiliVideo(video.Snippet.Title, video.Snippet.Description, macBilgisi, macTarihi))
                     {
                         _logger.LogInformation($"İlgili video bulundu: {video.Snippet.Title}");
-                        var yorum = await VideoDetaylariniAl(video, macBilgisi, kanal);
+                        var yorum = await VideoDetaylariniAl(video, macBilgisi, kanal, macId);
                         if (yorum != null)
                         {
                             yorumlar.Add(yorum);
@@ -553,7 +553,7 @@ namespace HakemYorumlari.Services
         /// <summary>
         /// Video detaylarını alır ve yorum oluşturur
         /// </summary>
-        private async Task<BulunanYorum?> VideoDetaylariniAl(PlaylistItem video, string macBilgisi, KanalBilgisi kanal)
+        private async Task<BulunanYorum?> VideoDetaylariniAl(PlaylistItem video, string macBilgisi, KanalBilgisi kanal, int macId)
         {
             try
             {
@@ -569,14 +569,15 @@ namespace HakemYorumlari.Services
 
                 // Transcript'ten pozisyon tespit et
                 var videoUrl = $"https://www.youtube.com/watch?v={video.Snippet.ResourceId.VideoId}";
-                var pozisyonlar = await TranscripttenPozisyonTespitEt(videoUrl, macBilgisi);
+                var pozisyonlar = await TranscripttenPozisyonTespitEt(videoUrl, macBilgisi, macId); // macId eklendi
 
-                if (pozisyonlar.Count > 0)
+                if (pozisyonlar?.Count > 0) // null check eklendi // null check eklendi
                 {
                     // İlk pozisyonu döndür
                     var ilkPozisyon = pozisyonlar.First();
                     ilkPozisyon.YorumcuAdi = kanal.YorumcuAdi;
                     ilkPozisyon.Kanal = kanal.KanalTuru;
+                    ilkPozisyon.MacId = macId;
                     return ilkPozisyon;
                 }
 
@@ -590,7 +591,8 @@ namespace HakemYorumlari.Services
                     KaynakLink = videoUrl,
                     KaynakTuru = "YouTube",
                     BulunduguSite = "YouTube",
-                    BulunmaTarihi = DateTime.Now
+                    BulunmaTarihi = DateTime.Now,
+                    MacId = macId  // ✅ int olarak
                 };
             }
             catch (Exception ex)
@@ -603,7 +605,7 @@ namespace HakemYorumlari.Services
         /// <summary>
         /// Video detaylarını alır ve yorum oluşturur (SearchResult için)
         /// </summary>
-        private async Task<BulunanYorum?> VideoDetaylariniAl(SearchResult video, string macBilgisi, KanalBilgisi kanal)
+        private async Task<BulunanYorum?> VideoDetaylariniAl(SearchResult video, string macBilgisi, KanalBilgisi kanal, int macId)
         {
             try
             {
@@ -619,9 +621,9 @@ namespace HakemYorumlari.Services
 
                 // Transcript'ten pozisyon tespit et
                 var videoUrl = $"https://www.youtube.com/watch?v={video.Id.VideoId}";
-                var pozisyonlar = await TranscripttenPozisyonTespitEt(videoUrl, macBilgisi);
+                var pozisyonlar = await TranscripttenPozisyonTespitEt(videoUrl, macBilgisi, macId); // macId eklendi
 
-                if (pozisyonlar.Count > 0)
+                if (pozisyonlar?.Count > 0)
                 {
                     // İlk pozisyonu döndür
                     var ilkPozisyon = pozisyonlar.First();
@@ -640,7 +642,8 @@ namespace HakemYorumlari.Services
                     KaynakLink = videoUrl,
                     KaynakTuru = "YouTube",
                     BulunduguSite = "YouTube",
-                    BulunmaTarihi = DateTime.Now
+                    BulunmaTarihi = DateTime.Now,
+                    MacId = macId  // ✅ int olarak
                 };
             }
             catch (Exception ex)
@@ -679,7 +682,7 @@ namespace HakemYorumlari.Services
             }
         }
 
-        public async Task<BulunanYorum?> VideoLinkindenTekYorum(string youtubeUrl, string macBilgisi, DateTime macTarihi, string? yorumcuAdiOverride = null)
+        public async Task<BulunanYorum?> VideoLinkindenTekYorum(string youtubeUrl, string macBilgisi, DateTime macTarihi, int macId, string? yorumcuAdiOverride = null)
     {
         if (_youtubeService == null) 
         {
@@ -734,7 +737,8 @@ namespace HakemYorumlari.Services
                     KaynakLink = youtubeUrl,
                     KaynakTuru = "YouTube",
                     BulunduguSite = "YouTube",
-                    BulunmaTarihi = DateTime.Now
+                    BulunmaTarihi = DateTime.Now,
+                    MacId = macId
                 };
 
                 _logger.LogInformation($"BulunanYorum oluşturuldu: {yorum.YorumcuAdi} - {yorum.Yorum.Substring(0, Math.Min(50, yorum.Yorum.Length))}...");
@@ -748,9 +752,9 @@ namespace HakemYorumlari.Services
         }
 
         /// <summary>
-        /// YouTube transcript'ten pozisyonları tespit eder (HTML scraping ile)
+        /// Transcript'ten pozisyonları tespit eder (HTML scraping ile)
         /// </summary>
-        public async Task<List<BulunanYorum>> TranscripttenPozisyonTespitEt(string youtubeUrl, string macBilgisi)
+        public async Task<List<BulunanYorum>> TranscripttenPozisyonTespitEt(string youtubeUrl, string macBilgisi, int macId)
         {
             try
             {
@@ -825,16 +829,17 @@ namespace HakemYorumlari.Services
                     pozisyonTespitEdildi.Add(key);
 
                     pozisyonlar.Add(new BulunanYorum
-                    {
-                        YorumcuAdi = "Transcript Tespit",
-                        Yorum = $"[{segment.Offset.Minutes:D2}:{segment.Offset.Seconds:D2}] {pozisyonTuru}: {segment.Text}",
-                        DogruKarar = false,
-                        Kanal = "YouTube Transcript",
-                        KaynakLink = youtubeUrl,
-                        KaynakTuru = "YouTube",
-                        BulunduguSite = "YouTube",
-                        BulunmaTarihi = DateTime.Now
-                    });
+                {
+                    YorumcuAdi = "Transcript Tespit",
+                    Yorum = $"[{segment.Offset.Minutes:D2}:{segment.Offset.Seconds:D2}] {pozisyonTuru}: {segment.Text}",
+                    DogruKarar = false,
+                    Kanal = "YouTube Transcript",
+                    KaynakLink = youtubeUrl,
+                    KaynakTuru = "YouTube",
+                    BulunduguSite = "YouTube",
+                    BulunmaTarihi = DateTime.Now,
+                    MacId = macId
+                });
                 }
 
                 _logger.LogInformation($"Transcript'ten toplam {pozisyonlar.Count} pozisyon tespit edildi");
@@ -1281,16 +1286,16 @@ private async Task<List<(TimeSpan Offset, string Text)>?> GetTranscriptViaTimedT
         }
 
         // Eski metodlar - geriye uyumluluk için
-        public async Task<List<BulunanYorum>> YouTubeHakemYorumlariniAra(string macBilgisi, DateTime macTarihi)
+        public async Task<List<BulunanYorum>> YouTubeHakemYorumlariniAra(string macBilgisi, DateTime macTarihi, int macId)
         {
             // Yeni kanal bazlı sistemi kullan
-            return await MacIcinKanalYorumlariniTopla(macBilgisi, macTarihi);
+            return await MacIcinKanalYorumlariniTopla(macBilgisi, macTarihi, macId);
         }
 
-        public async Task<List<BulunanYorum>> YouTubeArama(string aramaTerimi, DateTime macTarihi)
+        public async Task<List<BulunanYorum>> YouTubeArama(string aramaTerimi, DateTime macTarihi, int macId)
         {
             // Yeni kanal bazlı sistemi kullan
-            return await MacIcinKanalYorumlariniTopla(aramaTerimi, macTarihi);
+            return await MacIcinKanalYorumlariniTopla(aramaTerimi, macTarihi, macId);
         }
 
         public void Dispose()

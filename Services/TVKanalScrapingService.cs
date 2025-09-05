@@ -90,7 +90,7 @@ namespace HakemYorumlari.Services
             _httpClient.Timeout = TimeSpan.FromSeconds(30);
         }
         
-        public async Task<List<BulunanYorum>> TVKanalindanYorumAra(string kanalAdi, string macBilgisi)
+        public async Task<List<BulunanYorum>> TVKanalindanYorumAra(string kanalAdi, string macBilgisi, int macId)
         {
             if (!_tvKanallari.ContainsKey(kanalAdi)) 
             {
@@ -152,7 +152,8 @@ namespace HakemYorumlari.Services
                                         KaynakTuru = "TV_Web",
                                         Kanal = kanalAdi,
                                         BulunduguSite = kanalAdi,
-                                        BulunmaTarihi = DateTime.Now
+                                        BulunmaTarihi = DateTime.Now,
+                                        MacId = macId  // ✅ Artık çalışacak
                                     };
                                     
                                     yorumlar.Add(yorum);
@@ -189,7 +190,7 @@ namespace HakemYorumlari.Services
             return yorumlar.DistinctBy(y => y.KaynakLink).ToList();
         }
         
-        public async Task<List<BulunanYorum>> TumKanallarAra(string macBilgisi)
+        public async Task<List<BulunanYorum>> TumKanallarAra(string macBilgisi, int macId)
         {
             var tumYorumlar = new List<BulunanYorum>();
             
@@ -197,7 +198,7 @@ namespace HakemYorumlari.Services
             {
                 try
                 {
-                    return await TVKanalindanYorumAra(kanal, macBilgisi);
+                    return await TVKanalindanYorumAra(kanal, macBilgisi, macId);
                 }
                 catch (Exception ex)
                 {

@@ -140,7 +140,7 @@ namespace HakemYorumlari.Services
                 
                 try
                 {
-                    var youtubeYorumlari = await _youtubeService!.MacIcinKanalYorumlariniTopla(macBilgisi, mac.MacTarihi);
+                    var youtubeYorumlari = await _youtubeService!.MacIcinKanalYorumlariniTopla(macBilgisi, mac.MacTarihi, mac.Id); // mac.Id eklendi
                     bulunanYorumlar.AddRange(youtubeYorumlari);
                     _logger.LogInformation($"YouTube kanallarından {youtubeYorumlari.Count} yorum bulundu.");
                     
@@ -149,7 +149,8 @@ namespace HakemYorumlari.Services
                     {
                         foreach (var yorum in youtubeYorumlari.Take(3)) // İlk 3 yorumu logla
                         {
-                            _logger.LogInformation($"YouTube yorumu: {yorum.YorumcuAdi} - {yorum.Yorum.Substring(0, Math.Min(100, yorum.Yorum.Length))}...");
+                            _logger.LogInformation($"YouTube yorumu: {yorum.YorumcuAdi} - {yorum.Yorum?.Substring(0, Math.Min(100, yorum.Yorum?.Length ?? 0))}...");
+                            // Null check eklendi
                         }
                     }
                 }
@@ -162,9 +163,10 @@ namespace HakemYorumlari.Services
                 _logger.LogInformation("TV kanallarından yorum toplama başlatıldı...");
                 try
                 {
-                    var tvYorumlari = await _tvKanalService.TumKanallarAra(macBilgisi);
+                    var tvYorumlari = await _tvKanalService.TumKanallarAra(macBilgisi, mac.Id); // mac.Id eklendi
                     bulunanYorumlar.AddRange(tvYorumlari);
-                    _logger.LogInformation($"TV kanallarından {tvYorumlari.Count} yorum bulundu.");
+                    _logger.LogInformation($"TV kanallarından {tvYorumlari?.Count ?? 0} yorum bulundu.");
+                    // Null check eklendi
                 }
                 catch (Exception ex)
                 {
@@ -179,7 +181,8 @@ namespace HakemYorumlari.Services
                     try
                     {
                         _logger.LogInformation($"Site taranıyor: {site.Key}");
-                        var siteYorumlari = await WebScrapingYap(site.Key, site.Value, macBilgisi, mac.MacTarihi);
+                        // Satır ~181'de
+                        var siteYorumlari = await WebScrapingYap(site.Key, site.Value, macBilgisi, mac.MacTarihi, mac.Id);
                         gazeteYorumlari.AddRange(siteYorumlari);
                         _logger.LogInformation($"{site.Key} sitesinden {siteYorumlari.Count} yorum bulundu.");
                         await Task.Delay(2000);
@@ -299,7 +302,7 @@ namespace HakemYorumlari.Services
                 if (mac == null) return false;
 
                 var macBilgisi = $"{mac.EvSahibi} {mac.Deplasman}";
-                var yorum = await _youtubeService.VideoLinkindenTekYorum(youtubeUrl, macBilgisi, mac.MacTarihi);
+                var yorum = await _youtubeService.VideoLinkindenTekYorum(youtubeUrl, macBilgisi, mac.MacTarihi, mac.Id); // mac.Id eklendi
                 if (yorum == null)
                 {
                     _logger.LogWarning($"YouTube linkinden yorum bulunamadı (API). HTML fallback denenecek: {youtubeUrl}");
@@ -338,7 +341,7 @@ namespace HakemYorumlari.Services
                 if (mac == null) return false;
 
                 var macBilgisi = $"{mac.EvSahibi} {mac.Deplasman}";
-                var pozisyonlar = await _youtubeService.TranscripttenPozisyonTespitEt(youtubeUrl, macBilgisi);
+                var pozisyonlar = await _youtubeService.TranscripttenPozisyonTespitEt(youtubeUrl, macBilgisi, mac.Id); // mac.Id eklendi
                 
                 if (!pozisyonlar.Any())
                 {
@@ -346,8 +349,11 @@ namespace HakemYorumlari.Services
                     return false;
                 }
 
-                _logger.LogInformation($"Transcript'ten {pozisyonlar.Count} pozisyon bulundu, kaydediliyor...");
-
+                _logger.LogInformation($"Transcript'ten {pozisyonlar?.Count ?? 0} pozisyon bulundu, kaydediliyor...");
+                // Null check eklendi
+                
+                _logger.LogInformation($"Transcript'ten {pozisyonlar?.Count ?? 0} pozisyon eklendi");
+                // Null check eklendi
                 await YorumlariIsleVeKaydet(mac, pozisyonlar);
 
                 mac.YorumlarToplandi = true;
@@ -388,7 +394,7 @@ namespace HakemYorumlari.Services
             return aramaTerimleri;
         }
 
-        private async Task<List<BulunanYorum>> WebScrapingYap(string siteKey, SiteConfig siteConfig, string aramaTerimi, DateTime macTarihi)
+        private async Task<List<BulunanYorum>> WebScrapingYap(string siteKey, SiteConfig siteConfig, string aramaTerimi, DateTime macTarihi, int macId)
         {
             var bulunanYorumlar = new List<BulunanYorum>();
             
@@ -445,6 +451,7 @@ namespace HakemYorumlari.Services
                                 
                                 bulunanYorumlar.Add(new BulunanYorum
                                 {
+                                    MacId = macId, // YENİ: Maç ID'si eklendi
                                     YorumcuAdi = yorumcu ?? "Bilinmeyen",
                                     Yorum = title + (string.IsNullOrEmpty(content) ? "" : " - " + content),
                                     DogruKarar = dogruKarar,
@@ -714,8 +721,8 @@ namespace HakemYorumlari.Services
         }
     }
 
-    public class BulunanYorum
-    {
+    public class BulunanYorum    {
+        public int MacId { get; set; } // YENİ: Hangi maça ait olduğu bilgisi
         public string YorumcuAdi { get; set; } = null!;
         public string Yorum { get; set; } = null!;
         public bool DogruKarar { get; set; }
