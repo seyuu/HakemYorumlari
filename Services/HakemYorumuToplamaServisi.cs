@@ -209,7 +209,7 @@ namespace HakemYorumlari.Services
                 {
                     try
                     {
-                        var baglantiYorumu = await BaglantiLinktenYorumCek(baglantiLink!);
+                        var baglantiYorumu = await BaglantiLinktenYorumCek(baglantiLink!, macId);
                         if (baglantiYorumu != null)
                         {
                             bulunanYorumlar.Add(baglantiYorumu);
@@ -252,7 +252,7 @@ namespace HakemYorumlari.Services
             }
         }
 
-        private async Task<BulunanYorum?> YouTubeHtmlFallback(string youtubeUrl, string macBilgisi)
+        private async Task<BulunanYorum?> YouTubeHtmlFallback(string youtubeUrl, string macBilgisi, int macId)
         {
             try
             {
@@ -280,7 +280,8 @@ namespace HakemYorumlari.Services
                     KaynakLink = youtubeUrl,
                     KaynakTuru = "YouTube",
                     BulunduguSite = "YouTube",
-                    BulunmaTarihi = DateTime.Now
+                    BulunmaTarihi = DateTime.Now,
+                    MacId = macId  // ✅ EKLENDI!
                 };
             }
             catch (Exception ex)
@@ -302,11 +303,11 @@ namespace HakemYorumlari.Services
                 if (mac == null) return false;
 
                 var macBilgisi = $"{mac.EvSahibi} {mac.Deplasman}";
-                var yorum = await _youtubeService.VideoLinkindenTekYorum(youtubeUrl, macBilgisi, mac.MacTarihi, mac.Id); // mac.Id eklendi
+                var yorum = await YouTubeHtmlFallback(youtubeUrl, macBilgisi, mac.Id);
                 if (yorum == null)
                 {
                     _logger.LogWarning($"YouTube linkinden yorum bulunamadı (API). HTML fallback denenecek: {youtubeUrl}");
-                    yorum = await YouTubeHtmlFallback(youtubeUrl, macBilgisi);
+                    yorum = await YouTubeHtmlFallback(youtubeUrl, macBilgisi, mac.Id);
                     if (yorum == null)
                     {
                         return false;
@@ -490,7 +491,7 @@ namespace HakemYorumlari.Services
             return bulunanYorumlar;
         }
         
-        private async Task<BulunanYorum?> BaglantiLinktenYorumCek(string baglantiLink)
+        private async Task<BulunanYorum?> BaglantiLinktenYorumCek(string baglantiLink, int macId)
         {
             try
             {
@@ -547,7 +548,8 @@ namespace HakemYorumlari.Services
                     KaynakLink = baglantiLink,
                     KaynakTuru = DetermineKaynakTuru(siteName),
                     BulunduguSite = siteName,
-                    BulunmaTarihi = DateTime.Now
+                    BulunmaTarihi = DateTime.Now,
+                    MacId = macId  // ✅ EKLENDI!
                 };
             }
             catch (Exception ex)
