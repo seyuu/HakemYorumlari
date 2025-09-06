@@ -15,42 +15,42 @@ namespace HakemYorumlari.Services
             ["beinsports"] = new TVKanalConfig
             {
                 BaseUrl = "https://www.beinsports.com.tr",
-                SearchPath = "/arama?q={0}", // Güncellendi
-                VideoSelector = ".search-result-item, .video-card, .content-item", // Alternatif seçiciler
-                TitleSelector = ".title, .headline, h3, h4",
-                LinkSelector = "a"
+                SearchPath = "/arama?q={0}",
+                VideoSelector = ".search-result-item, .video-card, .content-item, .video-item, .news-card, .article-card, [data-video], .media-item, .post-item",
+                TitleSelector = ".title, .headline, h3, h4, .post-title, .article-title, .video-title, .news-title",
+                LinkSelector = "a, .link, [href]"
             },
             ["trtspor"] = new TVKanalConfig
             {
                 BaseUrl = "https://www.trtspor.com.tr",
-                SearchPath = "/arama/{0}/1", // Güncellendi
-                VideoSelector = ".haber-item",
-                TitleSelector = ".baslik",
-                LinkSelector = "a"
+                SearchPath = "/arama/{0}/1",
+                VideoSelector = ".haber-item, .news-item, .video-card, .content-item, .article-card, .media-item, .post-item",
+                TitleSelector = ".baslik, .title, .headline, h3, h4, .post-title, .article-title",
+                LinkSelector = "a, .link, [href]"
             },
             ["aspor"] = new TVKanalConfig
             {
                 BaseUrl = "https://www.aspor.com.tr",
-                SearchPath = "/arama?query={0}", // Güncellendi
-                VideoSelector = ".video-card",
-                TitleSelector = ".title",
-                LinkSelector = "a"
+                SearchPath = "/arama?query={0}",
+                VideoSelector = ".video-card, .news-item, .content-item, .article-card, .media-item, .post-item, .haber-item",
+                TitleSelector = ".title, .headline, h3, h4, .post-title, .article-title, .video-title, .baslik",
+                LinkSelector = "a, .link, [href]"
             },
             ["fanatik"] = new TVKanalConfig
             {
                 BaseUrl = "https://www.fanatik.com.tr",
-                SearchPath = "/arama?q={0}", // Değişiklik yok
-                VideoSelector = ".news-item",
-                TitleSelector = ".title",
-                LinkSelector = "a"
+                SearchPath = "/arama?q={0}",
+                VideoSelector = ".news-item, .video-card, .content-item, .article-card, .media-item, .post-item, .haber-item",
+                TitleSelector = ".title, .headline, h3, h4, .post-title, .article-title, .baslik",
+                LinkSelector = "a, .link, [href]"
             },
             ["fotomac"] = new TVKanalConfig
             {
                 BaseUrl = "https://www.fotomac.com.tr",
-                SearchPath = "/arama?query={0}", // Güncellendi
-                VideoSelector = ".haber-item",
-                TitleSelector = ".baslik",
-                LinkSelector = "a"
+                SearchPath = "/arama?query={0}",
+                VideoSelector = ".haber-item, .news-item, .video-card, .content-item, .article-card, .media-item, .post-item",
+                TitleSelector = ".baslik, .title, .headline, h3, h4, .post-title, .article-title",
+                LinkSelector = "a, .link, [href]"
             }
         };
         

@@ -22,3 +22,21 @@ COPY hakemyorumlama-2bf8fa35cf41.json /app/hakemyorumlama-2bf8fa35cf41.json
 ENV GOOGLE_APPLICATION_CREDENTIALS=/app/hakemyorumlama-2bf8fa35cf41.json
 COPY --from=build /app/out .
 ENTRYPOINT ["dotnet", "HakemYorumlari.dll"]
+
+# Mevcut Dockerfile'a ekle
+
+# Python ve Whisper kurulumu
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# yt-dlp kurulumu
+RUN pip3 install yt-dlp
+
+# Whisper kurulumu
+RUN pip3 install openai-whisper
+
+# Whisper modelini önceden indir (opsiyonel)
+RUN whisper --model medium --help > /dev/null 2>&1 || true

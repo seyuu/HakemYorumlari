@@ -69,36 +69,24 @@ builder.Services.AddScoped<PozisyonOtomatikTespitServisi>();
 builder.Services.AddScoped<FiksturGuncellemeServisi>();
 builder.Services.AddHostedService<MacTakipBackgroundService>();
 
+// Mevcut servis kayıtlarına ekle
+builder.Services.AddScoped<AIVideoAnalysisService>();
+
+// WebApplication'ı oluştur
 var app = builder.Build();
 
-// Cloud Run için port yapılandırması - EN BAŞTA!
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-app.Logger.LogInformation($"Uygulama {port} portunda başlatılıyor...");
-
-// ÖNCE ForwardedHeaders - EN ÖNEMLİ!
-app.UseForwardedHeaders(new ForwardedHeadersOptions
+// Configure the HTTP request pipeline.
+if (!app.Environment.IsDevelopment())
 {
-    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
-    RequireHeaderSymmetry = false,
-    ForwardLimit = null
-});
+    app.UseExceptionHandler("/Home/Error");
+    app.UseHsts();
+}
 
-// Cloud Run için doğru port binding
-app.Urls.Clear();
-app.Urls.Add($"http://0.0.0.0:{port}");
-
-// Request logging ekle
-app.Use(async (context, next) =>
-{
-    app.Logger.LogInformation($"İstek alındı: {context.Request.Method} {context.Request.Path} - Host: {context.Request.Host}");
-    await next();
-});
-
-// Cloud Run'da HTTPS redirection kullanma
-// app.UseHttpsRedirection(); // Bu satırı kaldırdık
-
+app.UseHttpsRedirection();
 app.UseStaticFiles();
+
 app.UseRouting();
+
 app.UseAuthorization();
 
 app.MapControllerRoute(

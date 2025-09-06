@@ -11,6 +11,7 @@ using System.Net;
 using System.Xml.Linq;
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 
 namespace HakemYorumlari.Services
 {
@@ -22,6 +23,7 @@ namespace HakemYorumlari.Services
         private readonly HttpClient _httpClient;
         private readonly bool _useOAuth2;
         private readonly string? _clientSecretPath;
+        private readonly AIVideoAnalysisService _aiVideoAnalysisService;
 
         // Direkt YouTube kanalları ve playlist'leri
         private readonly Dictionary<string, KanalBilgisi> _sporKanallari = new()
@@ -71,14 +73,15 @@ namespace HakemYorumlari.Services
             public string KanalTuru { get; set; } = "";
         }
 
-        public YouTubeScrapingService(IConfiguration configuration, ILogger<YouTubeScrapingService> logger)
+        public YouTubeScrapingService(IConfiguration configuration, ILogger<YouTubeScrapingService> logger, AIVideoAnalysisService aiVideoAnalysisService)
         {
             _logger = logger;
             _httpClient = new HttpClient();
             _apiKey = configuration["YouTube:ApiKey"];
             _useOAuth2 = configuration.GetValue<bool>("YouTube:UseOAuth2", false);
             _clientSecretPath = configuration["YouTube:ClientSecretPath"];
-            _logger.LogInformation("YouTubeScrapingService constructor başlatıldı");
+            _aiVideoAnalysisService = aiVideoAnalysisService;
+            _logger.LogInformation("Servis başlatıldı: {ServiceName}", "YouTubeScrapingService");
 
             try
             {
@@ -301,11 +304,12 @@ namespace HakemYorumlari.Services
                     }
                 }
                 
-                _logger.LogInformation($"Toplam {bulunanYorumlar.Count} yorum bulundu");
+                _logger.LogInformation("Toplam {VideoCount} video bulundu", bulunanYorumlar.Count);
+                _logger.LogInformation("İşlem tamamlandı: {ProcessedCount} video işlendi", bulunanYorumlar.Count);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "MacIcinKanalYorumlariniTopla metodunda genel hata oluştu: {Message}", ex.Message);
+                _logger.LogError(ex, "Hata oluştu: {ErrorMessage}", ex.Message);
             }
 
             return bulunanYorumlar;
@@ -547,7 +551,7 @@ namespace HakemYorumlari.Services
             // Sadece her iki takım da geçiyorsa ve hakem kelimesi varsa kabul et
             var hakemKelimeVarMi = _hakemAnahtarKelimeler.Any(k => nText.Contains(NormalizeTr(k)));
             
-            return evSahibiVar && deplasmanVar && hakemKelimeVarMi;
+            return evSahibiVar || deplasmanVar || hakemKelimeVarMi;
         }
 
         /// <summary>
@@ -566,6 +570,8 @@ namespace HakemYorumlari.Services
                 var videoDetay = videoResponse.Items?.FirstOrDefault();
 
                 if (videoDetay == null) return null;
+                
+                _logger.LogInformation("Video detayları alındı: {VideoTitle}, Kanal: {ChannelTitle}", videoDetay.Snippet.Title, videoDetay.Snippet.ChannelTitle);
 
                 // Transcript'ten pozisyon tespit et
                 var videoUrl = $"https://www.youtube.com/watch?v={video.Snippet.ResourceId.VideoId}";
@@ -582,7 +588,7 @@ namespace HakemYorumlari.Services
                 }
 
                 // Pozisyon bulunamazsa video başlığını döndür
-                return new BulunanYorum
+                var bulunanYorum = new BulunanYorum
                 {
                     YorumcuAdi = kanal.YorumcuAdi,
                     Yorum = videoDetay.Snippet.Title,
@@ -594,6 +600,9 @@ namespace HakemYorumlari.Services
                     BulunmaTarihi = DateTime.Now,
                     MacId = macId  // ✅ int olarak
                 };
+                
+                _logger.LogInformation("Video işlendi: {VideoTitle}", videoDetay.Snippet.Title);
+                return bulunanYorum;
             }
             catch (Exception ex)
             {
@@ -618,6 +627,8 @@ namespace HakemYorumlari.Services
                 var videoDetay = videoResponse.Items?.FirstOrDefault();
 
                 if (videoDetay == null) return null;
+                
+                _logger.LogInformation("Video detayları alındı: {VideoTitle}, Kanal: {ChannelTitle}", videoDetay.Snippet.Title, videoDetay.Snippet.ChannelTitle);
 
                 // Transcript'ten pozisyon tespit et
                 var videoUrl = $"https://www.youtube.com/watch?v={video.Id.VideoId}";
@@ -633,7 +644,7 @@ namespace HakemYorumlari.Services
                 }
 
                 // Pozisyon bulunamazsa video başlığını döndür
-                return new BulunanYorum
+                var bulunanYorum = new BulunanYorum
                 {
                     YorumcuAdi = kanal.YorumcuAdi,
                     Yorum = videoDetay.Snippet.Title,
@@ -645,6 +656,9 @@ namespace HakemYorumlari.Services
                     BulunmaTarihi = DateTime.Now,
                     MacId = macId  // ✅ int olarak
                 };
+                
+                _logger.LogInformation("Video işlendi: {VideoTitle}", videoDetay.Snippet.Title);
+                return bulunanYorum;
             }
             catch (Exception ex)
             {
@@ -740,6 +754,8 @@ namespace HakemYorumlari.Services
                     BulunmaTarihi = DateTime.Now,
                     MacId = macId
                 };
+                
+                _logger.LogInformation("Video işlendi: {VideoTitle}", title);
 
                 _logger.LogInformation($"BulunanYorum oluşturuldu: {yorum.YorumcuAdi} - {yorum.Yorum.Substring(0, Math.Min(50, yorum.Yorum.Length))}...");
                 return yorum;
@@ -804,6 +820,19 @@ namespace HakemYorumlari.Services
                                 segments.Add((ts, s));
                             }
                             _logger.LogInformation($"HTML üzerinden {segments.Count} transcript satırı alındı: {videoId}");
+                        }
+                    }
+                    
+                    // Eğer hala transcript bulunamadıysa AI ile dene
+                    if ((transcript == null || transcript.Count == 0) && segments.Count == 0)
+                    {
+                        _logger.LogInformation("Geleneksel yöntemlerle transcript bulunamadı, AI ile deneniyor: {YoutubeUrl}", youtubeUrl);
+                        
+                        var aiTranscriptSegments = await _aiVideoAnalysisService.ExtractTranscriptFromVideo(youtubeUrl);
+                        if (aiTranscriptSegments != null && aiTranscriptSegments.Count > 0)
+                        {
+                            segments = aiTranscriptSegments;
+                            _logger.LogInformation("AI ile {SegmentCount} transcript segmenti elde edildi", segments.Count);
                         }
                     }
                 }
@@ -1298,6 +1327,117 @@ private async Task<List<(TimeSpan Offset, string Text)>?> GetTranscriptViaTimedT
             return await MacIcinKanalYorumlariniTopla(aramaTerimi, macTarihi, macId);
         }
 
+        /// <summary>
+        /// AI transcript'ini parse eder
+        /// </summary>
+        private List<(TimeSpan Offset, string Text)> ParseAITranscript(string aiTranscript)
+        {
+            var segments = new List<(TimeSpan Offset, string Text)>();
+            
+            try
+            {
+                // AI transcript'i JSON formatında geliyorsa parse et
+                if (aiTranscript.StartsWith("{") || aiTranscript.StartsWith("["))
+                {
+                    try
+                    {
+                        var jsonDoc = JsonDocument.Parse(aiTranscript);
+                        
+                        // JSON formatı: [{"start": 0, "text": "..."}, ...]
+                        if (jsonDoc.RootElement.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var segment in jsonDoc.RootElement.EnumerateArray())
+                            {
+                                if (segment.TryGetProperty("start", out var startElement) && 
+                                    segment.TryGetProperty("text", out var textElement))
+                                {
+                                    double startSeconds = 0;
+                                    string text = "";
+                                    
+                                    if (startElement.ValueKind == JsonValueKind.Number)
+                                    {
+                                        startSeconds = startElement.GetDouble();
+                                    }
+                                    else if (startElement.ValueKind == JsonValueKind.String)
+                                    {
+                                        double.TryParse(startElement.GetString(), out startSeconds);
+                                    }
+                                    
+                                    if (textElement.ValueKind == JsonValueKind.String)
+                                    {
+                                        text = textElement.GetString() ?? "";
+                                    }
+                                    
+                                    if (!string.IsNullOrWhiteSpace(text))
+                                    {
+                                        segments.Add((TimeSpan.FromSeconds(startSeconds), text));
+                                    }
+                                }
+                            }
+                        }
+                        // JSON formatı: {"transcript": "...", ...}
+                        else if (jsonDoc.RootElement.ValueKind == JsonValueKind.Object)
+                        {
+                            if (jsonDoc.RootElement.TryGetProperty("transcript", out var transcriptElement) && 
+                                transcriptElement.ValueKind == JsonValueKind.String)
+                            {
+                                var fullTranscript = transcriptElement.GetString();
+                                if (!string.IsNullOrEmpty(fullTranscript))
+                                {
+                                    // Tam metni satırlara böl ve her satıra 5 saniye aralık ver
+                                    var lines = fullTranscript.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                                    for (int i = 0; i < lines.Length; i++)
+                                    {
+                                        var offset = TimeSpan.FromSeconds(i * 5); // 5 saniye aralıklarla
+                                        segments.Add((offset, lines[i].Trim()));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (JsonException jsonEx)
+                    {
+                        _logger.LogError(jsonEx, "AI transcript JSON parse hatası");
+                        // JSON parse edilemezse plain text olarak devam et
+                    }
+                }
+                
+                // Plain text olarak işle (JSON parse edilemezse veya plain text ise)
+                if (segments.Count == 0)
+                {
+                    var lines = aiTranscript.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                    for (int i = 0; i < lines.Length; i++)
+                    {
+                        var line = lines[i].Trim();
+                        if (string.IsNullOrEmpty(line)) continue;
+                        
+                        // Zaman bilgisi içeriyor mu kontrol et (00:00 formatı)
+                        var timeMatch = Regex.Match(line, @"^\[?(\d{1,2}):(\d{2})\]?\s");
+                        if (timeMatch.Success)
+                        {
+                            var minutes = int.Parse(timeMatch.Groups[1].Value);
+                            var seconds = int.Parse(timeMatch.Groups[2].Value);
+                            var offset = new TimeSpan(0, minutes, seconds);
+                            var text = line.Substring(timeMatch.Length).Trim();
+                            segments.Add((offset, text));
+                        }
+                        else
+                        {
+                            // Zaman bilgisi yoksa 5 saniye aralıklarla ekle
+                            var offset = TimeSpan.FromSeconds(i * 5);
+                            segments.Add((offset, line));
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "AI transcript parse hatası");
+            }
+            
+            return segments;
+        }
+        
         public void Dispose()
         {
             _youtubeService?.Dispose();
@@ -1327,13 +1467,34 @@ private async Task<List<(TimeSpan Offset, string Text)>?> GetTranscriptViaHTMLSc
         httpClient.DefaultRequestHeaders.Add("Sec-Fetch-Site", "none");
         httpClient.DefaultRequestHeaders.Add("Sec-Fetch-User", "?1");
         httpClient.DefaultRequestHeaders.Add("Cache-Control", "max-age=0");
+        httpClient.DefaultRequestHeaders.Add("Referer", "https://www.youtube.com/");
+        httpClient.DefaultRequestHeaders.Add("Origin", "https://www.youtube.com");
         
-        // Timeout ayarla
-        httpClient.Timeout = TimeSpan.FromSeconds(30);
+        // Timeout ayarla - daha uzun timeout
+        httpClient.Timeout = TimeSpan.FromSeconds(45);
         
         _logger.LogInformation($"Video {videoId} için HTML scraping başlatılıyor...");
         
-        var html = await httpClient.GetStringAsync(videoUrl);
+        // Retry mekanizması ekle
+        int maxRetries = 3;
+        int currentRetry = 0;
+        string html = string.Empty;
+        
+        while (currentRetry < maxRetries)
+        {
+            try
+            {
+                html = await httpClient.GetStringAsync(videoUrl);
+                if (!string.IsNullOrEmpty(html)) break;
+            }
+            catch (Exception retryEx)
+            {
+                currentRetry++;
+                _logger.LogWarning(retryEx, $"Video {videoId} için HTML içeriği alınamadı, deneme {currentRetry}/{maxRetries}");
+                if (currentRetry >= maxRetries) throw;
+                await Task.Delay(1000 * currentRetry); // Artan bekleme süresi
+            }
+        }
         
         _logger.LogInformation($"Video {videoId} için HTML içeriği alındı, boyut: {html.Length} karakter");
         
@@ -1345,7 +1506,9 @@ private async Task<List<(TimeSpan Offset, string Text)>?> GetTranscriptViaHTMLSc
                           html.Contains("caption-window") ||
                           html.Contains("\"hasCaption\":true") ||
                           html.Contains("\"captionsInitialState\":") ||
-                          html.Contains("timedtext");
+                          html.Contains("timedtext") ||
+                          html.Contains("playerCaptionsTracklistRenderer") ||
+                          html.Contains("captionsRenderer");
         
         if (hasSubtitles)
         {
@@ -1368,6 +1531,14 @@ private async Task<List<(TimeSpan Offset, string Text)>?> GetTranscriptViaHTMLSc
             }
         }
         
+        // Alternatif yöntem: YouTube iframe API ile dene
+        var iframeTranscript = await GetTranscriptViaIframeAPI(videoId);
+        if (iframeTranscript != null && iframeTranscript.Count > 0)
+        {
+            _logger.LogInformation($"Video {videoId} için iframe API üzerinden {iframeTranscript.Count} transcript segmenti bulundu");
+            return iframeTranscript;
+        }
+        
         _logger.LogWarning($"Video {videoId} için altyazı bulunamadı veya erişilemedi");
         return null;
     }
@@ -1386,6 +1557,147 @@ private async Task<List<(TimeSpan Offset, string Text)>?> GetTranscriptViaHTMLSc
         _logger.LogError(ex, $"HTML scraping transcript hatası - Video {videoId}: {ex.Message}");
         return null;
     }
+}
+
+/// <summary>
+/// YouTube iframe API üzerinden transcript çeker
+/// </summary>
+private async Task<List<(TimeSpan Offset, string Text)>?> GetTranscriptViaIframeAPI(string videoId)
+{
+    try
+    {
+        _logger.LogInformation($"Video {videoId} için iframe API transcript denemesi başlatılıyor");
+        
+        using var httpClient = new HttpClient();
+        httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        httpClient.DefaultRequestHeaders.Add("Referer", "https://www.youtube.com/");
+        httpClient.DefaultRequestHeaders.Add("Origin", "https://www.youtube.com");
+        httpClient.Timeout = TimeSpan.FromSeconds(15);
+        
+        // YouTube iframe API endpoint'leri
+        var endpoints = new[]
+        {
+            $"https://www.youtube.com/api/timedtext?v={videoId}&lang=tr",
+            $"https://www.youtube.com/api/timedtext?v={videoId}&lang=tr&kind=asr",
+            $"https://www.youtube.com/api/timedtext?v={videoId}&lang=tr&fmt=json3",
+            $"https://www.youtube.com/api/timedtext?v={videoId}&lang=tr&fmt=vtt",
+            $"https://www.youtube.com/api/timedtext?v={videoId}&lang=en",
+            $"https://www.youtube.com/api/timedtext?v={videoId}&lang=en&kind=asr",
+            $"https://www.youtube.com/api/timedtext?type=list&v={videoId}"
+        };
+        
+        foreach (var endpoint in endpoints)
+        {
+            try
+            {
+                var response = await httpClient.GetAsync(endpoint);
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    if (!string.IsNullOrEmpty(content))
+                    {
+                        if (content.Contains("<transcript") || content.Contains("<text"))
+                        {
+                            // XML formatı
+                            var segments = ParseTranscriptContent(content);
+                            if (segments.Count > 0)
+                            {
+                                _logger.LogInformation($"Video {videoId} için iframe API transcript bulundu: {segments.Count} segment");
+                                return segments;
+                            }
+                        }
+                        else if (content.Contains("cues") || content.Contains("events"))
+                        {
+                            // JSON formatı olabilir
+                            var segments = ParseJsonTranscript(content);
+                            if (segments.Count > 0)
+                            {
+                                _logger.LogInformation($"Video {videoId} için JSON transcript bulundu: {segments.Count} segment");
+                                return segments;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception endpointEx)
+            {
+                _logger.LogWarning(endpointEx, $"Video {videoId} için iframe API endpoint hatası: {endpoint}");
+            }
+        }
+        
+        return null;
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, $"iframe API transcript hatası - Video {videoId}: {ex.Message}");
+        return null;
+    }
+}
+
+/// <summary>
+/// JSON formatındaki transcript'i parse eder
+/// </summary>
+private List<(TimeSpan Offset, string Text)> ParseJsonTranscript(string jsonContent)
+{
+    var segments = new List<(TimeSpan Offset, string Text)>();
+    
+    try
+    {
+        // JSON içinde "cues" veya "events" dizisini ara
+        var cuesMatch = Regex.Match(jsonContent, @"""cues"":\s*\[(.*?)\]", RegexOptions.Singleline);
+        var eventsMatch = Regex.Match(jsonContent, @"""events"":\s*\[(.*?)\]", RegexOptions.Singleline);
+        
+        string itemsContent = cuesMatch.Success ? cuesMatch.Groups[1].Value : 
+                             eventsMatch.Success ? eventsMatch.Groups[1].Value : string.Empty;
+        
+        if (!string.IsNullOrEmpty(itemsContent))
+        {
+            // Her bir segment için regex
+            var itemRegex = new Regex(@"\{(.*?)\}", RegexOptions.Singleline);
+            var matches = itemRegex.Matches(itemsContent);
+            
+            foreach (Match match in matches)
+            {
+                var item = match.Groups[1].Value;
+                
+                // Zaman ve metin bilgilerini çıkar
+                var startMatch = Regex.Match(item, @"""tStartMs"":\s*(\d+)|""startTime"":\s*(\d+)|""start"":\s*(\d+)");
+                var textMatch = Regex.Match(item, @"""text"":\s*""(.*?)""|""segs"":\s*\[.*?""utf8"":\s*""(.*?)""");
+                
+                if (startMatch.Success && textMatch.Success)
+                {
+                    // Başlangıç zamanını al
+                    string startValue = startMatch.Groups[1].Value;
+                    if (string.IsNullOrEmpty(startValue)) startValue = startMatch.Groups[2].Value;
+                    if (string.IsNullOrEmpty(startValue)) startValue = startMatch.Groups[3].Value;
+                    
+                    if (long.TryParse(startValue, out long startMs))
+                    {
+                        // Metni al
+                        string text = textMatch.Groups[1].Value;
+                        if (string.IsNullOrEmpty(text)) text = textMatch.Groups[2].Value;
+                        
+                        // Escape karakterlerini temizle
+                        text = text.Replace("\\n", " ")
+                                  .Replace("\\r", " ")
+                                  .Replace("\\t", " ")
+                                  .Replace("\\\"", "\"");
+                        
+                        if (!string.IsNullOrEmpty(text))
+                        {
+                            segments.Add((TimeSpan.FromMilliseconds(startMs), text));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "JSON transcript parse hatası");
+    }
+    
+    return segments;
 }
 
 /// <summary>

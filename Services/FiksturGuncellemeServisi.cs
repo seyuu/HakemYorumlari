@@ -144,14 +144,15 @@ namespace HakemYorumlari.Services
                     {
                         // Tarih parse et - daha güvenli yaklaşım
                         DateTime macTarihi;
-                        if (!string.IsNullOrEmpty(tarihMetni) && DateTime.TryParse(tarihMetni, out var parsedDate))
+                        // Eski kod yerine:
+                        var parsedTarih = ParseTFFDate(tarihMetni);
+                        if (parsedTarih != DateTime.MinValue)
                         {
-                            macTarihi = parsedDate;
+                            macTarihi = parsedTarih;
                         }
                         else
                         {
                             _logger.LogWarning("Maç tarihi parse edilemedi: {TarihMetni}, hafta {Hafta} kullanılarak tahmin ediliyor", tarihMetni, hafta);
-                            // Hafta bilgisine göre tarih hesapla
                             var sezonBaslangici = new DateTime(DateTime.Now.Year, 8, 1);
                             macTarihi = sezonBaslangici.AddDays((hafta - 1) * 7);
                         }
@@ -197,6 +198,38 @@ namespace HakemYorumlari.Services
                 _logger.LogError(ex, "Maç bilgisi çıkarılırken hata oluştu");
                 return null;
             }
+        }
+
+        private DateTime ParseTFFDate(string tarihMetni)
+        {
+            if (string.IsNullOrEmpty(tarihMetni))
+                return DateTime.MinValue;
+            
+            // TFF'nin kullandığı farklı tarih formatlarını dene
+            string[] formats = {
+                "dd.MM.yyyy HH:mm",
+                "dd/MM/yyyy HH:mm", 
+                "dd.MM.yyyy",
+                "dd/MM/yyyy",
+                "yyyy-MM-dd HH:mm",
+                "yyyy-MM-dd"
+            };
+            
+            foreach (var format in formats)
+            {
+                if (DateTime.TryParseExact(tarihMetni.Trim(), format, 
+                    System.Globalization.CultureInfo.InvariantCulture, 
+                    System.Globalization.DateTimeStyles.None, out var result))
+                {
+                    return result;
+                }
+            }
+            
+            // Son çare olarak normal TryParse dene
+            if (DateTime.TryParse(tarihMetni, out var parsedDate))
+                return parsedDate;
+            
+            return DateTime.MinValue;
         }
 
         private bool IsValidScore(string skor1, string skor2)
