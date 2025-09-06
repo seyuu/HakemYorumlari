@@ -28,10 +28,6 @@ RUN pip3 install yt-dlp
 # Whisper kurulumu
 RUN pip3 install openai-whisper
 
-# Copy the Google Cloud credentials file
-COPY hakemyorumlama-2bf8fa35cf41.json /app/hakemyorumlama-2bf8fa35cf41.json
-
-# Set the environment variable for Google Application Credentials
-ENV GOOGLE_APPLICATION_CREDENTIALS=/app/hakemyorumlama-2bf8fa35cf41.json
+# Copy application files
 COPY --from=build /app/out .
 ENTRYPOINT ["dotnet", "HakemYorumlari.dll"]
