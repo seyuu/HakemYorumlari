@@ -109,11 +109,13 @@ namespace HakemYorumlari.Services
             
             try
             {
-                 mac = await _context.Maclar
+                // Performanslı sorgu - AsSplitQuery() kullan
+                mac = await _context.Maclar
+                    .AsSplitQuery() // Çoklu koleksiyon include uyarısını çözer
                     .Include(m => m.Pozisyonlar)
                     .ThenInclude(p => p.HakemYorumlari)
                     .FirstOrDefaultAsync(m => m.Id == macId);
-
+            
                 if (mac == null) 
                 {
                     _logger.LogWarning($"Maç bulunamadı: ID {macId}");

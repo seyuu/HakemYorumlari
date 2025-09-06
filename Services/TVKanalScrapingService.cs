@@ -11,14 +11,14 @@ namespace HakemYorumlari.Services
         
         private readonly Dictionary<string, TVKanalConfig> _tvKanallari = new()
         {
+            // beinsports için güncellenmiş seçiciler
             ["beinsports"] = new TVKanalConfig
             {
                 BaseUrl = "https://www.beinsports.com.tr",
-                SearchPath = "/SiteSearch?q={0}", // Güncellendi
-                VideoSelector = ".video-item",
-                TitleSelector = ".video-title",
-                LinkSelector = "a",
-                EmbedPattern = "https://embed.beinsports.com.tr/player/{0}"
+                SearchPath = "/arama?q={0}", // Güncellendi
+                VideoSelector = ".search-result-item, .video-card, .content-item", // Alternatif seçiciler
+                TitleSelector = ".title, .headline, h3, h4",
+                LinkSelector = "a"
             },
             ["trtspor"] = new TVKanalConfig
             {
@@ -74,7 +74,7 @@ namespace HakemYorumlari.Services
             _httpClient = httpClient;
             _logger = logger;
             
-            // User-Agent ve diğer header'ları ayarla
+            // Header ayarları...
             _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Add("User-Agent", 
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
@@ -87,7 +87,10 @@ namespace HakemYorumlari.Services
             _httpClient.DefaultRequestHeaders.Add("Upgrade-Insecure-Requests", "1");
             
             // Timeout ayarla
-            _httpClient.Timeout = TimeSpan.FromSeconds(30);
+            _httpClient.Timeout = TimeSpan.FromSeconds(15); // 30'dan 15'e düşürüldü
+            
+            // ❌ Constructor'da await kullanılamaz - kaldırıldı
+            // await Task.Delay(1000);
         }
         
         public async Task<List<BulunanYorum>> TVKanalindanYorumAra(string kanalAdi, string macBilgisi, int macId)
