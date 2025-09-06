@@ -15,17 +15,7 @@ WORKDIR /app
 EXPOSE 8080
 ENV PORT=8080
 
-# Copy the Google Cloud credentials file
-COPY hakemyorumlama-2bf8fa35cf41.json /app/hakemyorumlama-2bf8fa35cf41.json
-
-# Set the environment variable for Google Application Credentials
-ENV GOOGLE_APPLICATION_CREDENTIALS=/app/hakemyorumlama-2bf8fa35cf41.json
-COPY --from=build /app/out .
-ENTRYPOINT ["dotnet", "HakemYorumlari.dll"]
-
-# Mevcut Dockerfile'a ekle
-
-# Python ve Whisper kurulumu
+# Python ve Whisper kurulumu (ENTRYPOINT'ten önce olmalı)
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
@@ -40,3 +30,11 @@ RUN pip3 install openai-whisper
 
 # Whisper modelini önceden indir (opsiyonel)
 RUN whisper --model medium --help > /dev/null 2>&1 || true
+
+# Copy the Google Cloud credentials file
+COPY hakemyorumlama-2bf8fa35cf41.json /app/hakemyorumlama-2bf8fa35cf41.json
+
+# Set the environment variable for Google Application Credentials
+ENV GOOGLE_APPLICATION_CREDENTIALS=/app/hakemyorumlama-2bf8fa35cf41.json
+COPY --from=build /app/out .
+ENTRYPOINT ["dotnet", "HakemYorumlari.dll"]
