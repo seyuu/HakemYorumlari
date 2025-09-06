@@ -15,18 +15,6 @@ RUN dotnet publish "HakemYorumlari.csproj" -c Release -o /app/publish
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 EXPOSE 8080
-ENV PORT=8080
-
-# Python ve AI araçları kurulumu
-RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
-    ffmpeg \
-    && rm -rf /var/lib/apt/lists/*
-
-# Python paketleri kurulumu
-RUN pip3 install yt-dlp openai-whisper
-
-# Uygulama dosyalarını kopyala
+ENV ASPNETCORE_URLS=http://*:8080
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "HakemYorumlari.dll"]
