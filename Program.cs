@@ -2,6 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using HakemYorumlari.Data;
 using HakemYorumlari.Services;
 using Microsoft.AspNetCore.HttpOverrides;
+// --- GÜNCELLENEN BÖLÜM ---
+// Doğru ve güncel paket adı kullanıldı.
+using Google.Cloud.AspNetCore.DataProtection.Storage;
+using Microsoft.AspNetCore.DataProtection;
+// --- BÖLÜM SONU ---
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +25,19 @@ builder.Configuration["AllowedHosts"] = "*";
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+
+// --- YENİ EKLENEN BÖLÜM ---
+// Antiforgery anahtarlarını kalıcı hale getirmek için Data Protection'ı yapılandır.
+// Bu, Cloud Run gibi birden çok instance'ın olduğu ortamlarda token hatalarını önler.
+builder.Services.AddDataProtection()
+    // Anahtarları Google Cloud Storage'da sakla.
+    .PersistKeysToGoogleCloudStorage(
+        // Adım 2'de oluşturduğunuz bucket'ın adını buraya yazın.
+        "BURAYA-OLUSTURDUGUNUZ-BUCKET-ADINI-YAZIN", 
+        // Bucket içinde anahtarların saklanacağı dosyanın adı.
+        "keys.xml"); 
+// --- YENİ BÖLÜM SONU ---
+
 
 // HttpClient servisleri
 builder.Services.AddHttpClient<HakemYorumlari.Services.HakemYorumuToplamaServisi>(client =>
@@ -52,7 +70,7 @@ else
 {
     // Development modunda hem appsettings.json'dan hem environment variable'dan oku
     var connectionString = builder.Configuration.GetConnectionString("SQL_CONNECTION_STRING") 
-                          ?? Environment.GetEnvironmentVariable("SQL_CONNECTION_STRING");
+                            ?? Environment.GetEnvironmentVariable("SQL_CONNECTION_STRING");
     
     if (string.IsNullOrEmpty(connectionString))
     {
@@ -101,3 +119,4 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.Run();
+

@@ -18,38 +18,35 @@ namespace HakemYorumlari.Services
     public class YouTubeScrapingService : IDisposable
     {
         private readonly ILogger<YouTubeScrapingService> _logger;
-        private YouTubeService? _youtubeService; // readonly kaldırıldı
-        private readonly string? _apiKey;
+        private YouTubeService? _youtubeService;
         private readonly HttpClient _httpClient;
-        private readonly bool _useOAuth2;
-        private readonly string? _clientSecretPath;
         private readonly AIVideoAnalysisService _aiVideoAnalysisService;
 
         // Direkt YouTube kanalları ve playlist'leri
         private readonly Dictionary<string, KanalBilgisi> _sporKanallari = new()
         {
-            ["Ekol TV - Erman Toroğlu"] = new KanalBilgisi 
-            { 
+            ["Ekol TV - Erman Toroğlu"] = new KanalBilgisi
+            {
                 KanalId = "UCccxXUKSuqOrlWQxweZBAQw",
                 PlaylistId = "PLslvT4XP0_nKowGC1sL5A6Ft5wRf4lsz7",
                 YorumcuAdi = "Erman Toroğlu",
                 KanalTuru = "TV Kanalı"
             },
-            ["A Spor - Mustafa Çulcu"] = new KanalBilgisi 
-            { 
+            ["A Spor - Mustafa Çulcu"] = new KanalBilgisi
+            {
                 KanalId = "UCJElRTCNEmLemgirqvsW63Q",
                 YorumcuAdi = "Mustafa Çulcu",
                 KanalTuru = "TV Kanalı"
             },
-            ["TRT Spor - Bünyamin Gezer"] = new KanalBilgisi 
-            { 
+            ["TRT Spor - Bünyamin Gezer"] = new KanalBilgisi
+            {
                 KanalId = "UCfYNqluOf8EbQkL44otydMw",
                 PlaylistId = "PLA_JQAuwYFsQxIDQHYaV27NG59ch6oSQe",
                 YorumcuAdi = "Bünyamin Gezer",
                 KanalTuru = "TV Kanalı"
             },
-            ["beIN Sports - Trio"] = new KanalBilgisi 
-            { 
+            ["beIN Sports - Trio"] = new KanalBilgisi
+            {
                 KanalId = "UCPe9vNjHF1kEExT5kHwc7aw",
                 PlaylistId = "PLREq_OnJpFaQcEpAY7KIOrAaJ39QX9SHg",
                 YorumcuAdi = "beIN Sports Trio",
@@ -57,7 +54,7 @@ namespace HakemYorumlari.Services
             }
         };
 
-        // Hakemle ilgili kelimeler (genel/gürültülü olanları çıkardık: video, gol, tekrar vb.)
+        // Hakemle ilgili kelimeler
         private readonly List<string> _hakemAnahtarKelimeler = new()
         {
             "hakem", "var", "penaltı", "penalti", "kırmızı kart", "kirmizi kart",
@@ -77,147 +74,49 @@ namespace HakemYorumlari.Services
         {
             _logger = logger;
             _httpClient = new HttpClient();
-            _apiKey = configuration["YouTube:ApiKey"];
-            _useOAuth2 = configuration.GetValue<bool>("YouTube:UseOAuth2", false);
-            _clientSecretPath = configuration["YouTube:ClientSecretPath"];
             _aiVideoAnalysisService = aiVideoAnalysisService;
-            _logger.LogInformation("Servis başlatıldı: {ServiceName}", "YouTubeScrapingService");
+            _logger.LogInformation("Servis başlatılıyor: {ServiceName}", "YouTubeScrapingService");
 
+            // --- DEĞİŞECEK BÖLÜM BURASI ---
+            // Cloud Run için kimlik doğrulama mantığı sadeleştirildi ve doğru yetki kapsamı (scope) eklendi.
             try
             {
-                GoogleCredential? credential = null;
+                _logger.LogInformation("Application Default Credentials ile YouTube servisi başlatılıyor...");
                 
-                // Önce GOOGLE_APPLICATION_CREDENTIALS dosya yolunu kontrol et
-                var credentialsPath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
-                _logger.LogInformation("GOOGLE_APPLICATION_CREDENTIALS environment variable: {Path}", credentialsPath ?? "NULL");
-                
-                // Mevcut dizini ve dosyaları listele
-                var currentDir = Directory.GetCurrentDirectory();
-                _logger.LogInformation("Current directory: {Dir}", currentDir);
-                
-                try
-                {
-                    var files = Directory.GetFiles(currentDir, "*.json");
-                    _logger.LogInformation("JSON files in current directory: {Files}", string.Join(", ", files));
-                }
-                catch (Exception dirEx)
-                {
-                    _logger.LogWarning(dirEx, "Directory listing hatası");
-                }
-                
-                if (!string.IsNullOrEmpty(credentialsPath))
-                {
-                    _logger.LogInformation("GOOGLE_APPLICATION_CREDENTIALS bulundu: {Path}", credentialsPath);
-                    
-                    // Dosya var mı kontrol et
-                    if (File.Exists(credentialsPath))
-                    {
-                        _logger.LogInformation("Credentials dosyası bulundu, yükleniyor...");
-                        credential = GoogleCredential.FromFile(credentialsPath)
-                            .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
-                        _logger.LogInformation("Credentials başarıyla yüklendi");
-                    }
-                    else
-                    {
-                        _logger.LogWarning("GOOGLE_APPLICATION_CREDENTIALS dosyası bulunamadı: {Path}", credentialsPath);
-                        
-                        // Cloud Run'da farklı yollar dene
-                        var alternativePaths = new[]
-                        {
-                            "/workspace/hakemyorumlama-2bf8fa35cf41.json",
-                            "/app/hakemyorumlama-2bf8fa35cf41.json",
-                            "./hakemyorumlama-2bf8fa35cf41.json",
-                            "hakemyorumlama-2bf8fa35cf41.json",
-                            "/workspace/hakemyorumlama-2bf8fa35cf41.json",
-                            "/app/hakemyorumlama-2bf8fa35cf41.json"
-                        };
-                        
-                        _logger.LogInformation("Alternatif yollar deneniyor...");
-                        foreach (var altPath in alternativePaths)
-                        {
-                            _logger.LogInformation("Kontrol ediliyor: {Path}", altPath);
-                            if (File.Exists(altPath))
-                            {
-                                _logger.LogInformation("Alternatif credentials dosyası bulundu: {Path}", altPath);
-                                credential = GoogleCredential.FromFile(altPath)
-                                    .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
-                                _logger.LogInformation("Alternatif credentials başarıyla yüklendi");
-                                break;
-                            }
-                        }
-                        
-                        // Hiçbir dosya bulunamazsa Application Default Credentials dene
-                        if (credential == null)
-                        {
-                            _logger.LogWarning("Hiçbir credentials dosyası bulunamadı, Application Default Credentials denenecek");
-                            try
-                            {
-                                credential = GoogleCredential.GetApplicationDefault()
-                                    .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
-                                _logger.LogInformation("Application Default Credentials başarıyla yüklendi");
-                            }
-                            catch (Exception adcEx)
-                            {
-                                _logger.LogError(adcEx, "Application Default Credentials yüklenemedi: {Message}", adcEx.Message);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    _logger.LogWarning("GOOGLE_APPLICATION_CREDENTIALS bulunamadı, Application Default Credentials denenecek");
-                    try
-                    {
-                        credential = GoogleCredential.GetApplicationDefault()
-                            .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
-                        _logger.LogInformation("Application Default Credentials başarıyla yüklendi");
-                    }
-                    catch (Exception adcEx)
-                    {
-                        _logger.LogError(adcEx, "Application Default Credentials yüklenemedi: {Message}", adcEx.Message);
-                    }
-                }
+                var credential = GoogleCredential.GetApplicationDefault()
+                    // EN ÖNEMLİ DEĞİŞİKLİK: Altyazı gibi hassas verilere erişim için 'YoutubeForceSsl' scope'u kullanılıyor.
+                    .CreateScoped(YouTubeService.Scope.YoutubeForceSsl);
 
-                if (credential != null)
+                _youtubeService = new YouTubeService(new BaseClientService.Initializer()
                 {
-                    _logger.LogInformation("YouTube servisi başlatılıyor...");
-                    _youtubeService = new YouTubeService(new BaseClientService.Initializer()
-                    {
-                        HttpClientInitializer = credential,
-                        ApplicationName = "HakemYorumlari"
-                    });
-                    _logger.LogInformation("YouTube servisi başarıyla başlatıldı.");
-                }
-                else
-                {
-                    _logger.LogError("YouTube servisi NULL! Credential bulunamadı.");
-                    
-                    // API Key ile fallback dene
-                    if (!string.IsNullOrEmpty(_apiKey))
-                    {
-                        _logger.LogInformation("API Key ile YouTube servisi deneniyor...");
-                        try
-                        {
-                            _youtubeService = new YouTubeService(new BaseClientService.Initializer()
-                            {
-                                ApiKey = _apiKey,
-                                ApplicationName = "HakemYorumlari"
-                            });
-                            _logger.LogInformation("API Key ile YouTube servisi başarıyla başlatıldı.");
-                        }
-                        catch (Exception apiKeyEx)
-                        {
-                            _logger.LogError(apiKeyEx, "API Key ile YouTube servisi başlatılamadı: {Message}", apiKeyEx.Message);
-                        }
-                    }
-                }
+                    HttpClientInitializer = credential,
+                    ApplicationName = "HakemYorumlari"
+                });
+
+                _logger.LogInformation("YouTube servisi Application Default Credentials ile başarıyla başlatıldı.");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "YouTubeScrapingService başlatılırken hata oluştu");
+                _logger.LogError(ex, "YouTubeScrapingService başlatılırken Application Default Credentials ile hata oluştu.");
+                // API Key ile fallback mekanizması
+                var apiKey = configuration["YouTube:ApiKey"];
+                if (!string.IsNullOrEmpty(apiKey))
+                {
+                    _logger.LogWarning("Application Default Credentials başarısız oldu, API Key ile fallback deneniyor...");
+                    _youtubeService = new YouTubeService(new BaseClientService.Initializer()
+                    {
+                        ApiKey = apiKey,
+                        ApplicationName = "HakemYorumlari"
+                    });
+                     _logger.LogInformation("YouTube servisi API Key ile başarıyla başlatıldı.");
+                }
+                else
+                {
+                    _logger.LogError("Ne Application Default Credentials ne de API Key ile YouTube servisi başlatılamadı.");
+                }
             }
+            // --- DEĞİŞİMİN SONU ---
         }
-
         // ------------------------ Yardımcılar (TR normalize / tam kelime arama / takım ayrıştırma) ------------------------
         private static string NormalizeTr(string s)
         {
@@ -313,77 +212,6 @@ namespace HakemYorumlari.Services
             }
 
             return bulunanYorumlar;
-        }
-
-        /// <summary>
-        /// Belirli bir kanaldan yorum toplar
-        /// </summary>
-        private async Task InitializeOAuth2ServiceAsync()
-        {
-            try
-            {
-                _logger.LogInformation("OAuth2 authentication başlatılıyor...");
-                
-                UserCredential credential;
-                using (var stream = new FileStream(_clientSecretPath!, FileMode.Open, FileAccess.Read))
-                {
-                    credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
-            GoogleClientSecrets.FromStream(stream).Secrets,
-            new[] { YouTubeService.Scope.YoutubeReadonly },
-            "user",
-            CancellationToken.None,
-            new FileDataStore("HakemYorumlari.OAuth2", true),
-            new LocalServerCodeReceiver());
-                }
-
-                var youtubeService = new YouTubeService(new BaseClientService.Initializer()
-                {
-                    HttpClientInitializer = credential,
-                    ApplicationName = "HakemYorumlari"
-                });
-                
-                // Thread-safe assignment
-                Interlocked.Exchange(ref _youtubeService, youtubeService);
-                
-                _logger.LogInformation("OAuth2 YouTube servisi başarıyla başlatıldı");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "OAuth2 YouTube servisi başlatılırken hata oluştu");
-                // Fallback to API key if available
-                if (!string.IsNullOrEmpty(_apiKey))
-                {
-                    _logger.LogInformation("OAuth2 başarısız, API key ile deneniyor...");
-                    InitializeApiKeyService();
-                }
-            }
-        }
-
-        private void InitializeApiKeyService()
-        {
-            try
-            {
-                var youtubeService = new YouTubeService(new BaseClientService.Initializer()
-                {
-                    ApiKey = _apiKey,
-                    ApplicationName = "HakemYorumlari"
-                });
-                
-                // Referer ve header'lar ekle
-                youtubeService.HttpClient.DefaultRequestHeaders.Add("User-Agent", "HakemYorumlari/1.0");
-                youtubeService.HttpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-                youtubeService.HttpClient.DefaultRequestHeaders.Add("Referer", "https://hakemyorumlari.com.tr");
-                youtubeService.HttpClient.DefaultRequestHeaders.Add("Origin", "https://hakemyorumlari.com.tr");
-                
-                // Thread-safe assignment
-                Interlocked.Exchange(ref _youtubeService, youtubeService);
-                
-                _logger.LogInformation("API Key ile YouTube servisi başarıyla başlatıldı");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "API Key ile YouTube servisi başlatılırken hata oluştu");
-            }
         }
 
         private async Task<List<BulunanYorum>> KanaldanYorumTopla(KanalBilgisi kanal, string macBilgisi, DateTime macTarihi, int macId)
