@@ -5,6 +5,10 @@ using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Cloud Run için port yapılandırması
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://*:{port}");
+
 // Host validation'ı tamamen devre dışı bırak
 builder.WebHost.UseKestrel(options =>
 {
@@ -79,10 +83,13 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
+    // Cloud Run için HTTPS redirection'ı kaldır
+    // app.UseHsts(); // Bu da kaldırılabilir
 }
 
-app.UseHttpsRedirection();
+// Cloud Run HTTP üzerinden çalıştığı için HTTPS redirection'ı kaldır
+// app.UseHttpsRedirection(); // Bu satırı kaldır veya yorum yap
+
 app.UseStaticFiles();
 
 app.UseRouting();

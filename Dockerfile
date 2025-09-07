@@ -19,8 +19,9 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 
 # Cloud Run için gerekli environment variables
-ENV ASPNETCORE_URLS=http://*:8080
+ENV ASPNETCORE_URLS=http://*:$PORT
 ENV ASPNETCORE_ENVIRONMENT=Production
+ENV PORT=8080
 
-EXPOSE 8080
-ENTRYPOINT ["dotnet", "HakemYorumlari.dll"]
+EXPOSE $PORT
+ENTRYpoint ["dotnet", "HakemYorumlari.dll"]
