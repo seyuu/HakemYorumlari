@@ -15,7 +15,6 @@ RUN dotnet publish "HakemYorumlari.csproj" -c Release -o /app/publish /p:UseAppH
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 COPY . /app/
-COPY hakemyorumlama-2bf8fa35cf41.json /app/
 
 # .NET uygulamasını kopyala
 COPY --from=publish /app/publish .
