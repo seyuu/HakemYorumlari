@@ -7,3 +7,6 @@ Dockerfile*
 */bin
 */obj
 **/.toolstarget
+# JSON dosyalarını dahil et
+!*.json
+!hakemyorumlama-2bf8fa35cf41.json
