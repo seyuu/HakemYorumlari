@@ -30,12 +30,7 @@ builder.Services.AddControllersWithViews();
 // Antiforgery anahtarlarını kalıcı hale getirmek için Data Protection'ı yapılandır.
 // Bu, Cloud Run gibi birden çok instance'ın olduğu ortamlarda token hatalarını önler.
 builder.Services.AddDataProtection()
-    // Anahtarları Google Cloud Storage'da sakla.
-    .PersistKeysToGoogleCloudStorage(
-        // Adım 2'de oluşturduğunuz bucket'ın adını buraya yazın.
-        "BURAYA-OLUSTURDUGUNUZ-BUCKET-ADINI-YAZIN", 
-        // Bucket içinde anahtarların saklanacağı dosyanın adı.
-        "keys.xml"); 
+    .PersistKeysToFileSystem(new DirectoryInfo("/tmp/keys"));
 // --- YENİ BÖLÜM SONU ---
 
 
