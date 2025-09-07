@@ -205,6 +205,9 @@ namespace HakemYorumlari.Services
             if (string.IsNullOrEmpty(tarihMetni))
                 return DateTime.MinValue;
             
+            // Çoklu boşlukları tek boşluğa çevir ve trim yap
+            tarihMetni = System.Text.RegularExpressions.Regex.Replace(tarihMetni.Trim(), @"\s+", " ");
+            
             // TFF'nin kullandığı farklı tarih formatlarını dene
             string[] formats = {
                 "dd.MM.yyyy HH:mm",
@@ -217,7 +220,7 @@ namespace HakemYorumlari.Services
             
             foreach (var format in formats)
             {
-                if (DateTime.TryParseExact(tarihMetni.Trim(), format, 
+                if (DateTime.TryParseExact(tarihMetni, format, 
                     System.Globalization.CultureInfo.InvariantCulture, 
                     System.Globalization.DateTimeStyles.None, out var result))
                 {
