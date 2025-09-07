@@ -84,8 +84,8 @@ namespace HakemYorumlari.Services
                 _logger.LogInformation("Application Default Credentials ile YouTube servisi başlatılıyor...");
                 
                 var credential = GoogleCredential.GetApplicationDefault()
-                    // EN ÖNEMLİ DEĞİŞİKLİK: Altyazı gibi hassas verilere erişim için 'YoutubeForceSsl' scope'u kullanılıyor.
-                    .CreateScoped(YouTubeService.Scope.YoutubeForceSsl);
+                    // DÜZELTME: Video okuma, playlist erişimi ve transcript okuma için 'YoutubeReadonly' scope'u kullanılıyor.
+                    .CreateScoped(YouTubeService.Scope.YoutubeReadonly);
 
                 _youtubeService = new YouTubeService(new BaseClientService.Initializer()
                 {
