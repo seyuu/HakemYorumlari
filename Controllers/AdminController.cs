@@ -12,13 +12,15 @@ namespace HakemYorumlari.Controllers
         private readonly FiksturGuncellemeServisi _fiksturGuncellemeServisi;
         private readonly YouTubeScrapingService _youtubeService;
         private readonly HakemYorumuToplamaServisi _hakemYorumuToplamaServisi;
+        private readonly BackgroundJobService _backgroundJobService;
 
-        public AdminController(ApplicationDbContext context, FiksturGuncellemeServisi fiksturGuncellemeServisi, YouTubeScrapingService youtubeService, HakemYorumuToplamaServisi hakemYorumuToplamaServisi)
+        public AdminController(ApplicationDbContext context, 
+                      HakemYorumuToplamaServisi hakemYorumuToplamaServisi,
+                      BackgroundJobService backgroundJobService) // Bu satırı ekle
         {
             _context = context;
-            _fiksturGuncellemeServisi = fiksturGuncellemeServisi;
-            _youtubeService = youtubeService;
             _hakemYorumuToplamaServisi = hakemYorumuToplamaServisi;
+            _backgroundJobService = backgroundJobService; // Bu satırı ekle
         }
 
         // Admin Dashboard
@@ -497,36 +499,19 @@ namespace HakemYorumlari.Controllers
         {
             try
             {
-                var haftaninMaclari = await _context.Maclar
-                    .Where(m => m.Hafta == hafta && 
-                               m.Liga == "Süper Lig" &&
-                               m.Durum == MacDurumu.Bitti &&
-                               !m.YorumlarToplandi)
-                    .ToListAsync();
-
-                int basariliSayisi = 0;
-
-                foreach (var mac in haftaninMaclari)
-                {
-                    var basarili = await _hakemYorumuToplamaServisi.MacIcinYorumTopla(mac.Id);
-                    if (basarili)
-                    {
-                        basariliSayisi++;
-                    }
-                    
-                    // Rate limiting için bekleme
-                    await Task.Delay(2000);
-                }
-
-                TempData["SuccessMessage"] = $"{hafta}. hafta için {basariliSayisi} maçın yorumları başarıyla toplandı.";
+                // Background job olarak kuyruğa ekle
+                var jobId = _backgroundJobService.EnqueueHaftaYorumToplama(hafta);
+                
+                TempData["SuccessMessage"] = $"{hafta}. hafta yorum toplama işi başlatıldı. İşlem ID: {jobId}";
+                TempData["JobId"] = jobId; // İlerlemesi takip edilebilir
+                
                 return RedirectToAction("Maclar", new { hafta = hafta });
             }
             catch (Exception ex)
             {
-                TempData["Error"] = $"Hafta bazlı yorum toplanırken hata oluştu: {ex.Message}";
+                TempData["Error"] = $"Hafta bazlı yorum toplama başlatılırken hata oluştu: {ex.Message}";
+                return RedirectToAction("Maclar", new { hafta = hafta });
             }
-            
-            return RedirectToAction("Maclar", new { hafta = hafta });
         }
 
         // Toplu maç durumu güncelleme
@@ -728,100 +713,6 @@ namespace HakemYorumlari.Controllers
             }
             
             return RedirectToAction("Index");
-        }
-
-        // Yorum-Maç Eşleştirme Analizi
-        public async Task<IActionResult> YorumMacEslestirmeAnalizi()
-        {
-            try
-            {
-                // Sorunlu yorum-maç eşleştirmelerini bul
-                var sorunluEslestirmeler = await _context.HakemYorumlari
-                    .Include(h => h.Pozisyon)
-                    .ThenInclude(p => p.Mac)
-                    .Where(h => h.Pozisyon != null && h.Pozisyon.Mac != null)
-                    .Select(h => new {
-                        YorumId = h.Id,
-                        YorumMetni = h.Yorum,
-                        YorumcuAdi = h.YorumcuAdi,
-                        Kanal = h.Kanal,
-                        MacId = h.Pozisyon.MacId,
-                        EvSahibi = h.Pozisyon.Mac.EvSahibi,
-                        Deplasman = h.Pozisyon.Mac.Deplasman,
-                        MacTarihi = h.Pozisyon.Mac.MacTarihi,
-                        PozisyonAciklama = h.Pozisyon.Aciklama,
-                        // Yorum metninde maç takımlarının geçip geçmediğini kontrol et
-                        EvSahibiGeciyorMu = h.Yorum.ToLower().Contains(h.Pozisyon.Mac.EvSahibi.ToLower()),
-                        DeplesmanGeciyorMu = h.Yorum.ToLower().Contains(h.Pozisyon.Mac.Deplasman.ToLower())
-                    })
-                    .ToListAsync();
-
-                // Sorunlu eşleştirmeleri filtrele (hiçbir takım adı geçmeyenler)
-                var gercektenSorunlu = sorunluEslestirmeler
-                    .Where(x => !x.EvSahibiGeciyorMu && !x.DeplesmanGeciyorMu)
-                    .ToList();
-
-                // Yanlış eşleştirme örnekleri (farklı takım adları geçenler)
-                var yanlisEslestirmeler = new List<object>();
-                
-                foreach (var eslestirme in sorunluEslestirmeler)
-                {
-                    // Yorum metninde başka takım adları var mı kontrol et
-                    var tumMaclar = await _context.Maclar
-                        .Where(m => m.Id != eslestirme.MacId)
-                        .Select(m => new { m.Id, m.EvSahibi, m.Deplasman })
-                        .ToListAsync();
-                    
-                    foreach (var mac in tumMaclar)
-                    {
-                        if (eslestirme.YorumMetni.ToLower().Contains(mac.EvSahibi.ToLower()) ||
-                            eslestirme.YorumMetni.ToLower().Contains(mac.Deplasman.ToLower()))
-                        {
-                            yanlisEslestirmeler.Add(new {
-                                YorumId = eslestirme.YorumId,
-                                YorumMetni = eslestirme.YorumMetni,
-                                MevcutMac = $"{eslestirme.EvSahibi} - {eslestirme.Deplasman}",
-                                DogruMacOlabilir = $"{mac.EvSahibi} - {mac.Deplasman}",
-                                DogruMacId = mac.Id
-                            });
-                            break;
-                        }
-                    }
-                }
-
-                // Maç başına yorum sayıları
-                var macYorumSayilari = await _context.Maclar
-                    .Include(m => m.Pozisyonlar)
-                    .ThenInclude(p => p.HakemYorumlari)
-                    .Select(m => new {
-                        MacId = m.Id,
-                        EvSahibi = m.EvSahibi,
-                        Deplasman = m.Deplasman,
-                        MacTarihi = m.MacTarihi,
-                        ToplamYorum = m.Pozisyonlar.SelectMany(p => p.HakemYorumlari).Count(),
-                        PozisyonSayisi = m.Pozisyonlar.Count()
-                    })
-                    .OrderByDescending(x => x.ToplamYorum)
-                    .Take(20)
-                    .ToListAsync();
-
-                var analiz = new {
-                    ToplamYorum = await _context.HakemYorumlari.CountAsync(),
-                    ToplamMac = await _context.Maclar.CountAsync(),
-                    SorunluEslestirmeSayisi = gercektenSorunlu.Count,
-                    YanlisEslestirmeSayisi = yanlisEslestirmeler.Count,
-                    SorunluEslestirmeler = gercektenSorunlu.Take(10),
-                    YanlisEslestirmeler = yanlisEslestirmeler.Take(10),
-                    MacYorumSayilari = macYorumSayilari,
-                    AnalizTarihi = DateTime.Now
-                };
-
-                return Json(analiz);
-            }
-            catch (Exception ex)
-            {
-                return Json(new { Hata = ex.Message, StackTrace = ex.StackTrace });
-            }
         }
 
         // YouTube Debug Endpoint

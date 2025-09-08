@@ -95,6 +95,7 @@ internal class Program
         builder.Services.AddScoped<PozisyonOtomatikTespitServisi>();
         builder.Services.AddScoped<FiksturGuncellemeServisi>();
         builder.Services.AddHostedService<MacTakipBackgroundService>();
+        builder.Services.AddHostedService<BackgroundJobService>();
 
         // Mevcut servis kayıtlarına ekle
         builder.Services.AddScoped<AIVideoAnalysisService>();
