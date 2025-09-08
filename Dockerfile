@@ -15,22 +15,16 @@ RUN dotnet publish "HakemYorumlari.csproj" -c Release -o /app/publish /p:UseAppH
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
-# --- YENİ EKLENEN BÖLÜM ---
-# Gerekli araçları (yt-dlp ve ffmpeg) kurmak için root kullanıcısına geçiyoruz.
-# Microsoft'un .NET imajları varsayılan olarak yetkisi kısıtlı 'app' kullanıcısını kullanır.
+# --- GÜNCELLENEN BÖLÜM ---
+# Gerekli araçları (yt-dlp VE ffmpeg) kurmak için root kullanıcısına geç
 USER root
-
-# Paket listelerini güncelliyor ve gerekli araçları kuruyoruz.
-# --no-install-recommends ile sadece gerekli bağımlılıkları kurarak imaj boyutunu optimize ediyoruz.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     yt-dlp \
     ffmpeg \
-    # Kurulum sonrası paket önbelleğini temizleyerek imaj boyutunu daha da küçültüyoruz.
     && rm -rf /var/lib/apt/lists/*
-
-# Güvenlik best practice'i olarak, kurulumdan sonra tekrar yetkisi kısıtlı 'app' kullanıcısına dönüyoruz.
+# Kurulumdan sonra tekrar güvenli olan 'app' kullanıcısına dön
 USER app
-# --- YENİ BÖLÜM SONU ---
+# --- GÜNCELLEME SONU ---
 
 # .NET uygulamasını kopyala
 COPY --from=publish /app/publish .
@@ -46,3 +40,4 @@ ENV GOOGLE_APPLICATION_CREDENTIALS=/app/hakemyorumlama-2bf8fa35cf41.json
 
 EXPOSE $PORT
 ENTRYPOINT ["dotnet", "HakemYorumlari.dll"]
+
