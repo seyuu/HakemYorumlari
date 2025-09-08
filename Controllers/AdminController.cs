@@ -12,15 +12,15 @@ namespace HakemYorumlari.Controllers
         private readonly FiksturGuncellemeServisi _fiksturGuncellemeServisi;
         private readonly YouTubeScrapingService _youtubeService;
         private readonly HakemYorumuToplamaServisi _hakemYorumuToplamaServisi;
-        private readonly BackgroundJobService _backgroundJobService;
+        private readonly IBackgroundJobService _backgroundJobService;
 
         public AdminController(ApplicationDbContext context, 
                       HakemYorumuToplamaServisi hakemYorumuToplamaServisi,
-                      BackgroundJobService backgroundJobService) // Bu satırı ekle
+                      IBackgroundJobService backgroundJobService)
         {
             _context = context;
             _hakemYorumuToplamaServisi = hakemYorumuToplamaServisi;
-            _backgroundJobService = backgroundJobService; // Bu satırı ekle
+            _backgroundJobService = backgroundJobService;
         }
 
         // Admin Dashboard

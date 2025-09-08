@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HakemYorumlari.Services
 {
-    public class BackgroundJobService : BackgroundService
+    public class BackgroundJobService : BackgroundService, IBackgroundJobService
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<BackgroundJobService> _logger;
