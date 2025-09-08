@@ -997,7 +997,7 @@ private async Task<List<(TimeSpan Offset, string Text)>?> GetTranscriptViaTimedT
                 req.Headers.Add("Sec-Fetch-Site", "same-origin");
                 
                 // Timeout ayarla
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15)); // 8'den 15'e artırıldı
                 
                 var resp = await _httpClient.SendAsync(req, cts.Token);
                 

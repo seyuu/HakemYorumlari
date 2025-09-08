@@ -29,6 +29,7 @@
     <PackageReference Include="Google.Apis.Auth" Version="1.70.0" />
     <!-- Mevcut paketlere ekle -->
     <PackageReference Include="Google.Cloud.Speech.V1" Version="3.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.8.0" />
     <PackageReference Include="System.Text.Json" Version="8.0.0" />
   </ItemGroup>
 
