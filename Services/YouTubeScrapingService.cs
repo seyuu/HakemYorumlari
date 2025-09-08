@@ -372,14 +372,74 @@ namespace HakemYorumlari.Services
             var nText = NormalizeTr(full);
             var (home, away) = ParseTeams(macBilgisi);
 
-            // Her iki takım adı da geçmeli (daha sıkı kontrol)
+            // SIKI KONTROL: Her iki takım adı da geçmeli
             bool evSahibiVar = !string.IsNullOrWhiteSpace(home) && nText.Contains(NormalizeTr(home));
             bool deplasmanVar = !string.IsNullOrWhiteSpace(away) && nText.Contains(NormalizeTr(away));
             
-            // Sadece her iki takım da geçiyorsa ve hakem kelimesi varsa kabul et
+            // Hakem kelimesi de mutlaka olmalı
             var hakemKelimeVarMi = _hakemAnahtarKelimeler.Any(k => nText.Contains(NormalizeTr(k)));
             
-            return evSahibiVar || deplasmanVar || hakemKelimeVarMi;
+            // Tarih kontrolü ekle (±2 gün)
+            bool tarihUygunMu = CheckVideoDateCompatibility(title, description, macTarihi);
+            
+            // HER ÜÇ ŞART DA SAĞLANMALI
+            return evSahibiVar && deplasmanVar && hakemKelimeVarMi && tarihUygunMu;
+        }
+        
+        /// <summary>
+        /// Video başlık ve açıklamasında maç tarihine uygun tarih var mı kontrol eder
+        /// </summary>
+        private bool CheckVideoDateCompatibility(string? title, string? description, DateTime macTarihi)
+        {
+            // Eğer başlık veya açıklama yoksa, tarih kontrolü yapılamaz
+            if (string.IsNullOrEmpty(title) && string.IsNullOrEmpty(description)) return false;
+            
+            var full = (title ?? "") + " " + (description ?? "");
+            
+            // Maç tarihinden 2 gün önce ve 2 gün sonrası kabul edilebilir aralık
+            var minDate = macTarihi.AddDays(-2);
+            var maxDate = macTarihi.AddDays(2);
+            
+            // Tarih formatları: DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY
+            var datePatterns = new[]
+            {
+                @"\b(\d{1,2})\.(\d{1,2})\.(\d{2,4})\b",  // DD.MM.YYYY
+                @"\b(\d{1,2})/(\d{1,2})/(\d{2,4})\b",   // DD/MM/YYYY
+                @"\b(\d{1,2})-(\d{1,2})-(\d{2,4})\b"    // DD-MM-YYYY
+            };
+            
+            foreach (var pattern in datePatterns)
+            {
+                var matches = Regex.Matches(full, pattern);
+                foreach (Match match in matches)
+                {
+                    int day = int.Parse(match.Groups[1].Value);
+                    int month = int.Parse(match.Groups[2].Value);
+                    int year = int.Parse(match.Groups[3].Value);
+                    
+                    // 2 haneli yıl formatını 4 haneye çevir
+                    if (year < 100)
+                    {
+                        year += year < 50 ? 2000 : 1900;
+                    }
+                    
+                    try
+                    {
+                        var date = new DateTime(year, month, day);
+                        if (date >= minDate && date <= maxDate)
+                        {
+                            return true;
+                        }
+                    }
+                    catch
+                    {
+                        // Geçersiz tarih, devam et
+                    }
+                }
+            }
+            
+            // Tarih bulunamadı veya uygun değil, yine de kabul et (geriye uyumluluk için)
+            return true;
         }
 
         /// <summary>
@@ -525,7 +585,7 @@ namespace HakemYorumlari.Services
         }
 
         public async Task<BulunanYorum?> VideoLinkindenTekYorum(string youtubeUrl, string macBilgisi, DateTime macTarihi, int macId, string? yorumcuAdiOverride = null)
-    {
+        {
         if (_youtubeService == null) 
         {
             _logger.LogWarning("YouTube servisi null - API key eksik olabilir");
@@ -567,7 +627,20 @@ namespace HakemYorumlari.Services
             if (!isMacIleIlgili)
             {
                 _logger.LogInformation($"Video maçla ilişkili değil görünüyor: {title}");
-                // Yine de yorum olarak ekle - kullanıcı manuel olarak eklemek istiyor
+                // AI ile doğrulama yap
+                var aiValidation = await ValidateVideoContentWithAI(youtubeUrl, macBilgisi);
+                _logger.LogInformation($"AI doğrulaması sonucu: {aiValidation}");
+                
+                if (!aiValidation)
+                {
+                    _logger.LogInformation($"AI doğrulaması da başarısız oldu, video ilgisiz olabilir");
+                    // Yine de yorum olarak ekle - kullanıcı manuel olarak eklemek istiyor
+                }
+                else
+                {
+                    _logger.LogInformation($"AI doğrulaması başarılı, video ilgili olarak işaretlendi");
+                    isMacIleIlgili = true;
+                }
             }
 
                 var yorum = new BulunanYorum
@@ -678,7 +751,7 @@ namespace HakemYorumlari.Services
                 {
                     var dakika = (int)segment.Offset.TotalMinutes;
                     var metin = NormalizeTr(segment.Text);
-                    var pozisyonTuru = PozisyonTuruTespitEt(metin);
+                    var pozisyonTuru = PozisyonTuruTespitEt(metin, macBilgisi);
                     if (string.IsNullOrEmpty(pozisyonTuru)) continue;
 
                     var key = $"{dakika}_{pozisyonTuru}";
@@ -1116,8 +1189,21 @@ private async Task<List<(TimeSpan Offset, string Text)>?> GetTranscriptViaTimedT
         /// <summary>
         /// Metinden pozisyon türünü tespit eder
         /// </summary>
-        private string? PozisyonTuruTespitEt(string metin)
+        private string? PozisyonTuruTespitEt(string metin, string macBilgisi = "")
         {
+            // Eğer maç bilgisi varsa, takım adlarının geçip geçmediğini kontrol et
+            if (!string.IsNullOrEmpty(macBilgisi))
+            {
+                var (home, away) = ParseTeams(macBilgisi);
+                var normalizedText = NormalizeTr(metin);
+                
+                // Takım adlarından en az biri geçiyorsa devam et
+                bool takimIlgiliMi = (!string.IsNullOrEmpty(home) && normalizedText.Contains(NormalizeTr(home))) || 
+                                    (!string.IsNullOrEmpty(away) && normalizedText.Contains(NormalizeTr(away)));
+                
+                if (!takimIlgiliMi) return null; // Takım adı geçmiyorsa pozisyon sayma
+            }
+            
             if (metin.Contains("penaltı") || metin.Contains("penalti") || metin.Contains("penalty"))
                 return "Penaltı";
             
@@ -1275,6 +1361,107 @@ private async Task<List<(TimeSpan Offset, string Text)>?> GetTranscriptViaTimedT
         /// <summary>
 /// HTML scraping ile YouTube altyazılarını çeker
 /// </summary>
+/// <summary>
+/// Video içeriğini AI ile doğrular
+/// </summary>
+private async Task<bool> ValidateVideoContentWithAI(string videoUrl, string macBilgisi)
+{
+    try
+    {
+        // Video transcript'ini al
+        var videoId = ParseVideoIdFromUrl(videoUrl);
+        if (string.IsNullOrEmpty(videoId)) return false;
+        
+        // Transcript'i farklı yöntemlerle almayı dene
+        var transcript = await GetFullTranscript(videoId);
+        if (string.IsNullOrEmpty(transcript)) return false;
+        
+        _logger.LogInformation($"AI analizi için transcript alındı, uzunluk: {transcript.Length} karakter");
+        
+        // AI ile transcript'i analiz et
+        var analysisResult = await _aiVideoAnalysisService.AnalyzeTranscriptForMatch(transcript, macBilgisi);
+        
+        _logger.LogInformation($"AI analiz sonucu: İlgili={analysisResult.IsRelevantToMatch}, Güven={analysisResult.ConfidenceScore}");
+        
+        return analysisResult.IsRelevantToMatch && analysisResult.ConfidenceScore > 0.7;
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, $"AI ile video içeriği doğrulama hatası: {ex.Message}");
+        return false;
+    }
+}
+
+/// <summary>
+/// Video için tam transcript metnini alır
+/// </summary>
+private async Task<string> GetFullTranscript(string videoId)
+{
+    try
+    {
+        var sb = new StringBuilder();
+        
+        // 1. HTML scraping ile dene
+        var htmlTranscript = await GetTranscriptViaHTMLScraping(videoId);
+        if (htmlTranscript != null && htmlTranscript.Count > 0)
+        {
+            foreach (var segment in htmlTranscript.OrderBy(s => s.Offset))
+            {
+                sb.AppendLine($"[{segment.Offset.Minutes:D2}:{segment.Offset.Seconds:D2}] {segment.Text}");
+            }
+            return sb.ToString();
+        }
+        
+        // 2. TimedText ile dene
+        var timedTextTranscript = await GetTranscriptViaTimedText(videoId);
+        if (timedTextTranscript != null && timedTextTranscript.Count > 0)
+        {
+            foreach (var segment in timedTextTranscript.OrderBy(s => s.Offset))
+            {
+                sb.AppendLine($"[{segment.Offset.Minutes:D2}:{segment.Offset.Seconds:D2}] {segment.Text}");
+            }
+            return sb.ToString();
+        }
+        
+        // 3. YouTube API ile dene
+        var apiTranscript = await GetTranscriptViaYouTubeAPI(videoId);
+        if (apiTranscript != null && apiTranscript.Count > 0)
+        {
+            foreach (var segment in apiTranscript.OrderBy(s => s.Offset))
+            {
+                sb.AppendLine($"[{segment.Offset.Minutes:D2}:{segment.Offset.Seconds:D2}] {segment.Text}");
+            }
+            return sb.ToString();
+        }
+        
+        // 4. HTML fallback
+        var rawTranscript = await GetTranscriptFromHtml(videoId);
+        if (!string.IsNullOrEmpty(rawTranscript))
+        {
+            return rawTranscript;
+        }
+        
+        // 5. AI ile transcript çıkarma
+        var videoUrl = $"https://www.youtube.com/watch?v={videoId}";
+        var aiTranscriptSegments = await _aiVideoAnalysisService.ExtractTranscriptFromVideo(videoUrl);
+        if (aiTranscriptSegments != null && aiTranscriptSegments.Count > 0)
+        {
+            foreach (var segment in aiTranscriptSegments.OrderBy(s => s.Offset))
+            {
+                sb.AppendLine($"[{segment.Offset.Minutes:D2}:{segment.Offset.Seconds:D2}] {segment.Text}");
+            }
+            return sb.ToString();
+        }
+        
+        return string.Empty;
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, $"Tam transcript alma hatası: {videoId}");
+        return string.Empty;
+    }
+}
+
 private async Task<List<(TimeSpan Offset, string Text)>?> GetTranscriptViaHTMLScraping(string videoId)
 {
     try

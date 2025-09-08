@@ -4,6 +4,14 @@ using System.Text.Json;
 
 namespace HakemYorumlari.Services
 {
+    public class MatchRelevanceResult
+    {
+        public bool IsRelevantToMatch { get; set; }
+        public double ConfidenceScore { get; set; }
+        public List<string> DetectedTeams { get; set; } = new();
+        public List<string> DetectedPositions { get; set; } = new();
+    }
+
     public class AIVideoAnalysisService : IDisposable
     {
         private readonly ILogger<AIVideoAnalysisService> _logger;
@@ -324,6 +332,84 @@ namespace HakemYorumlari.Services
                     _logger.LogWarning(ex, $"Geçici dosya silinemedi: {filePath}");
                 }
             }
+        }
+
+        /// <summary>
+        /// Transcript'i analiz ederek maçla ilgili olup olmadığını belirler
+        /// </summary>
+        public async Task<MatchRelevanceResult> AnalyzeTranscriptForMatch(string transcript, string matchInfo)
+        {
+            try
+            {
+                _logger.LogInformation("Transcript analizi başlatılıyor: {MatchInfo}", matchInfo);
+                
+                // Basit kural tabanlı analiz (gelecekte AI ile geliştirilebilir)
+                var result = new MatchRelevanceResult();
+                
+                if (string.IsNullOrEmpty(transcript) || string.IsNullOrEmpty(matchInfo))
+                {
+                    return result;
+                }
+                
+                var transcriptLower = transcript.ToLowerInvariant();
+                var matchInfoLower = matchInfo.ToLowerInvariant();
+                
+                // Takım adlarını parse et
+                var teams = ParseTeamNames(matchInfoLower);
+                result.DetectedTeams = teams.Where(team => transcriptLower.Contains(team)).ToList();
+                
+                // Pozisyon kelimelerini tespit et
+                var positionKeywords = new[] { "penaltı", "kırmızı kart", "sarı kart", "ofsayt", "var", "faul" };
+                result.DetectedPositions = positionKeywords.Where(pos => transcriptLower.Contains(pos)).ToList();
+                
+                // Güven skoru hesapla
+                double teamScore = result.DetectedTeams.Count > 0 ? 0.5 : 0.0;
+                double positionScore = result.DetectedPositions.Count > 0 ? 0.3 : 0.0;
+                double contextScore = ContainsMatchContext(transcriptLower) ? 0.2 : 0.0;
+                
+                result.ConfidenceScore = teamScore + positionScore + contextScore;
+                result.IsRelevantToMatch = result.ConfidenceScore > 0.4;
+                
+                _logger.LogInformation("Transcript analizi tamamlandı. Güven skoru: {Score}, İlgili: {IsRelevant}", 
+                    result.ConfidenceScore, result.IsRelevantToMatch);
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Transcript analizi hatası: {MatchInfo}", matchInfo);
+                return new MatchRelevanceResult();
+            }
+        }
+        
+        private List<string> ParseTeamNames(string matchInfo)
+        {
+            var teams = new List<string>();
+            
+            // Farklı ayırıcıları dene
+            var separators = new[] { " vs ", " - ", "-", "–", "—" };
+            
+            foreach (var separator in separators)
+            {
+                if (matchInfo.Contains(separator))
+                {
+                    var parts = matchInfo.Split(new[] { separator }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length == 2)
+                    {
+                        teams.Add(parts[0].Trim());
+                        teams.Add(parts[1].Trim());
+                        break;
+                    }
+                }
+            }
+            
+            return teams;
+        }
+        
+        private bool ContainsMatchContext(string transcript)
+        {
+            var contextKeywords = new[] { "maç", "müsabaka", "karşılaşma", "hakem", "dakika" };
+            return contextKeywords.Any(keyword => transcript.Contains(keyword));
         }
 
         // DÜZELTME: IDisposable interface'ni implement et
