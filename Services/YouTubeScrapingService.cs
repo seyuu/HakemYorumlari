@@ -59,7 +59,8 @@ namespace HakemYorumlari.Services
         {
             "hakem", "var", "penaltı", "penalti", "kırmızı kart", "kirmizi kart",
             "sarı kart", "sari kart", "ofsayt", "offside", "faul", "pozisyon",
-            "karar", "tartışmalı", "tartismali", "hata", "doğru karar", "yanlış karar"
+            "karar", "tartışmalı", "tartismali", "hata", "doğru karar", "yanlış karar",
+            "pozisyon analizi", "hakem hatası", "VAR incelemesi", "tartışmalı karar", "müdahale"
         };
 
         public class KanalBilgisi
@@ -251,7 +252,7 @@ namespace HakemYorumlari.Services
                 
                 foreach (var video in kanalVideolari)
                 {
-                    if (IsMacIleIlgiliVideo(video.Snippet.Title, video.Snippet.Description, macBilgisi, macTarihi))
+                    if (IsMacIleIlgiliVideo(video.Snippet.Title, video.Snippet.Description, macBilgisi, macTarihi, video.Snippet.ChannelTitle))
                     {
                         _logger.LogInformation($"İlgili video bulundu: {video.Snippet.Title}");
                         var yorum = await VideoDetaylariniAl(video, macBilgisi, kanal, macId);
@@ -364,7 +365,7 @@ namespace HakemYorumlari.Services
         /// <summary>
         /// Video maç ile ilgili mi kontrol eder - İyileştirilmiş skorlama sistemi
         /// </summary>
-        private bool IsMacIleIlgiliVideo(string? title, string? description, string macBilgisi, DateTime macTarihi)
+        private bool IsMacIleIlgiliVideo(string? title, string? description, string macBilgisi, DateTime macTarihi, string? channelTitle = null)
         {
             if (string.IsNullOrEmpty(title) && string.IsNullOrEmpty(description)) return false;
 
@@ -393,13 +394,18 @@ namespace HakemYorumlari.Services
             var genelDegerlendirmeKelimeleri = new[] { "trio", "değerlendirme", "analiz", "yorumlar", "haftalık" };
             if (genelDegerlendirmeKelimeleri.Any(k => nText.Contains(k))) score += 30;
             
+            // Özel kanal bonusları
+            var kanalAdi = channelTitle?.ToLower() ?? "";
+            if (kanalAdi.Contains("bein") && nText.Contains("trio")) score += 50;
+            if (kanalAdi.Contains("aspor") || kanalAdi.Contains("trt spor")) score += 30;
+            
             // Tarih uyumluluğu (bonus)
             if (CheckVideoDateCompatibility(title, description, macTarihi)) score += 20;
             
             _logger.LogInformation($"Video skorlaması: '{title}' - Skor: {score} (Ev: {evSahibiVar}, Deplasman: {deplasmanVar}, Hakem: {hakemKelimeVarMi})");
             
-            // Minimum eşik: 80 puan
-            return score >= 80;
+            // Minimum eşik: 60 puan (80'den düşürüldü)
+            return score >= 60;
         }
 
         /// <summary>
@@ -693,7 +699,7 @@ namespace HakemYorumlari.Services
             var title = video.Snippet?.Title ?? "";
             var desc = video.Snippet?.Description ?? "";
             
-            var isMacIleIlgili = IsMacIleIlgiliVideo(title, desc, macBilgisi, macTarihi);
+            var isMacIleIlgili = IsMacIleIlgiliVideo(title, desc, macBilgisi, macTarihi, video.Snippet?.ChannelTitle);
             _logger.LogInformation($"Video maçla ilişkili mi: {isMacIleIlgili}");
 
             if (!isMacIleIlgili)
