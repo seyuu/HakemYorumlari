@@ -362,7 +362,7 @@ namespace HakemYorumlari.Services
         }
 
         /// <summary>
-        /// Video maç ile ilgili mi kontrol eder
+        /// Video maç ile ilgili mi kontrol eder - İyileştirilmiş skorlama sistemi
         /// </summary>
         private bool IsMacIleIlgiliVideo(string? title, string? description, string macBilgisi, DateTime macTarihi)
         {
@@ -371,19 +371,91 @@ namespace HakemYorumlari.Services
             var full = (title ?? "") + " " + (description ?? "");
             var nText = NormalizeTr(full);
             var (home, away) = ParseTeams(macBilgisi);
-
-            // SIKI KONTROL: Her iki takım adı da geçmeli
-            bool evSahibiVar = !string.IsNullOrWhiteSpace(home) && nText.Contains(NormalizeTr(home));
-            bool deplasmanVar = !string.IsNullOrWhiteSpace(away) && nText.Contains(NormalizeTr(away));
             
-            // Hakem kelimesi de mutlaka olmalı
+            int score = 0;
+            
+            // Takım adları kontrolü (daha esnek)
+            bool evSahibiVar = !string.IsNullOrWhiteSpace(home) && ContainsTeamName(nText, home);
+            bool deplasmanVar = !string.IsNullOrWhiteSpace(away) && ContainsTeamName(nText, away);
+            
+            if (evSahibiVar && deplasmanVar) score += 100; // Her iki takım da var
+            else if (evSahibiVar || deplasmanVar) score += 60; // En az bir takım var
+            
+            // Hakem/pozisyon kelimeleri (bonus puan)
             var hakemKelimeVarMi = _hakemAnahtarKelimeler.Any(k => nText.Contains(NormalizeTr(k)));
+            if (hakemKelimeVarMi) score += 40;
             
-            // Tarih kontrolü ekle (±2 gün)
-            bool tarihUygunMu = CheckVideoDateCompatibility(title, description, macTarihi);
+            // Genel maç kelimeleri
+            var macKelimeleri = new[] { "maç", "müsabaka", "karşılaşma", "hafta", "lig", "süper lig", "spor toto" };
+            if (macKelimeleri.Any(k => nText.Contains(k))) score += 20;
             
-            // HER ÜÇ ŞART DA SAĞLANMALI
-            return evSahibiVar && deplasmanVar && hakemKelimeVarMi && tarihUygunMu;
+            // Trio, A Spor gibi genel değerlendirme kanalları için özel bonus
+            var genelDegerlendirmeKelimeleri = new[] { "trio", "değerlendirme", "analiz", "yorumlar", "haftalık" };
+            if (genelDegerlendirmeKelimeleri.Any(k => nText.Contains(k))) score += 30;
+            
+            // Tarih uyumluluğu (bonus)
+            if (CheckVideoDateCompatibility(title, description, macTarihi)) score += 20;
+            
+            _logger.LogInformation($"Video skorlaması: '{title}' - Skor: {score} (Ev: {evSahibiVar}, Deplasman: {deplasmanVar}, Hakem: {hakemKelimeVarMi})");
+            
+            // Minimum eşik: 80 puan
+            return score >= 80;
+        }
+
+        /// <summary>
+        /// Takım adını daha esnek şekilde kontrol eder
+        /// </summary>
+        private bool ContainsTeamName(string text, string teamName)
+        {
+            if (string.IsNullOrWhiteSpace(teamName)) return false;
+            
+            var normalizedTeam = NormalizeTr(teamName);
+            
+            // Tam eşleşme
+            if (text.Contains(normalizedTeam)) return true;
+            
+            // Kısaltmalar ve alternatif isimler
+            var teamAliases = GetTeamAliases(normalizedTeam);
+            return teamAliases.Any(alias => text.Contains(alias));
+        }
+
+        /// <summary>
+        /// Takım için alternatif isimler ve kısaltmalar döndürür
+        /// </summary>
+        private List<string> GetTeamAliases(string teamName)
+        {
+            var aliases = new List<string> { teamName };
+            
+            // Yaygın takım kısaltmaları
+            var teamMappings = new Dictionary<string, string[]>
+            {
+                { "galatasaray", new[] { "gs", "gala", "galata" } },
+                { "fenerbahce", new[] { "fb", "fener" } },
+                { "besiktas", new[] { "bjk", "kartal" } },
+                { "trabzonspor", new[] { "ts", "trabzon" } },
+                { "basaksehir", new[] { "başakşehir", "ibfk" } },
+                { "antalyaspor", new[] { "antalya" } },
+                { "kayserispor", new[] { "kayseri" } },
+                { "sivasspor", new[] { "sivas" } },
+                { "konyaspor", new[] { "konya" } },
+                { "alanyaspor", new[] { "alanya" } },
+                { "gaziantep", new[] { "gaziantepspor" } },
+                { "hatayspor", new[] { "hatay" } },
+                { "kasimpasa", new[] { "kasımpaşa" } },
+                { "rizespor", new[] { "rize" } },
+                { "adana demirspor", new[] { "adana", "demirspor" } }
+            };
+            
+            foreach (var mapping in teamMappings)
+            {
+                if (teamName.Contains(mapping.Key))
+                {
+                    aliases.AddRange(mapping.Value);
+                    break;
+                }
+            }
+            
+            return aliases.Select(NormalizeTr).Distinct().ToList();
         }
         
         /// <summary>
