@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HakemYorumlari.Services
 {
-    public class BackgroundJobService : BackgroundService, IBackgroundJobService
+    public class BackgroundJobService : BackgroundService
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<BackgroundJobService> _logger;
@@ -110,9 +110,9 @@ namespace HakemYorumlari.Services
                 .ToListAsync(cancellationToken);
 
             int basariliSayisi = 0;
-            int toplamMac = haftaninMaclari.Count;
+            int toplamMac = haftaninMaclari.Count(); // Parantez eklendi
 
-            for (int i = 0; i < haftaninMaclari.Count; i++)
+            for (int i = 0; i < haftaninMaclari.Count(); i++) // Parantez eklendi
             {
                 if (cancellationToken.IsCancellationRequested) break;
 

@@ -735,5 +735,37 @@ namespace HakemYorumlari.Controllers
             
             return Json(debugInfo);
         }
+
+        // Job durumu kontrol endpoint'i
+        [HttpGet]
+        public IActionResult GetJobStatus(string jobId)
+        {
+            if (string.IsNullOrEmpty(jobId))
+            {
+                return BadRequest("Job ID gerekli");
+            }
+
+            var status = _backgroundJobService.GetJobStatus(jobId);
+            if (status == null)
+            {
+                return NotFound("Job bulunamadı");
+            }
+
+            return Json(new
+            {
+                status = status.Status,
+                message = status.Message,
+                progress = status.Progress,
+                updatedAt = status.UpdatedAt
+            });
+        }
+
+        // AJAX ile sürekli kontrol için
+        [HttpGet]
+        public IActionResult JobStatusPage(string jobId)
+        {
+            ViewBag.JobId = jobId;
+            return View();
+        }
     }
 }
