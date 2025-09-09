@@ -73,7 +73,6 @@
                         </div>
                     }
 
-                    <!-- Hafta Seçici ve Toplu İşlemler -->
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <label for="haftaSecici" class="form-label"><strong>Hafta Seçin:</strong></label>
@@ -87,7 +86,6 @@
                             </select>
                         </div>
                         <div class="col-md-8 d-flex align-items-end gap-2">
-                            <!-- Hafta Bazlı Toplu Skor Çek -->
                             <form asp-action="HaftaTopluSkorCek" method="post" style="display:inline;" onsubmit="return confirm('@ViewBag.SecilenHafta. haftanın maç skorları TFF\'den çekilecek. Bu işlem uzun sürebilir. Devam etmek istiyor musunuz?')">
                                 <input type="hidden" name="hafta" value="@ViewBag.SecilenHafta" />
                                 <button type="submit" class="btn btn-warning" title="Seçilen haftanın tüm maçları için gerçek skorları TFF'den çeker">
@@ -95,7 +93,6 @@
                                 </button>
                             </form>
                             
-                            <!-- Hafta Bazlı Toplu Yorum Topla -->
                             <form asp-action="HaftaTopluYorumTopla" method="post" style="display:inline;" onsubmit="return confirm('@ViewBag.SecilenHafta. haftanın maç yorumları toplanacak. Bu işlem uzun sürebilir. Devam etmek istiyor musunuz?')">
                                 <input type="hidden" name="hafta" value="@ViewBag.SecilenHafta" />
                                 <button type="submit" class="btn btn-info" title="Seçilen haftanın tüm maçları için hakem yorumlarını toplar">
@@ -103,7 +100,6 @@
                                 </button>
                             </form>
                             
-                            <!-- Tüm Maçlar için Toplu Skor Çek -->
                             <form asp-action="TopluSkorCek" method="post" style="display:inline;" onsubmit="return confirm('TÜM geçmiş maçların skorları TFF\'den çekilecek. Bu işlem çok uzun sürebilir. Devam etmek istiyor musunuz?')">
                                 <button type="submit" class="btn btn-outline-warning" title="Tüm geçmiş maçlar için gerçek skorları TFF'den çeker">
                                     <i class="fas fa-download"></i> Tüm Skorları Çek
@@ -112,7 +108,6 @@
                         </div>
                     </div>
 
-                    <!-- Buton Açıklamaları -->
                     <div class="alert alert-info mb-3">
                         <h6><i class="fas fa-info-circle"></i> İşlem Butonları Açıklaması:</h6>
                         <div class="row">
@@ -192,12 +187,10 @@
                                         <td>@item.Hafta</td>
                                         <td>
                                             <div class="d-flex gap-1 flex-wrap">
-                                                <!-- Düzenle Butonu -->
                                                 <a asp-action="MacDuzenle" asp-route-id="@item.Id" class="btn btn-warning btn-sm" title="Maç bilgilerini düzenle">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
                                                 
-                                                <!-- Skor Çek Butonu -->
                                                 <form asp-action="SkorCek" method="post" style="display:inline;">
                                                     <input type="hidden" name="macId" value="@item.Id" />
                                                     <button type="submit" class="btn btn-info btn-sm" title="Bu maç için gerçek skoru TFF'den çek">
@@ -205,7 +198,6 @@
                                                     </button>
                                                 </form>
                                                 
-                                                <!-- Durum Değiştirme Dropdown -->
                                                 <div class="dropdown d-inline-block">
                                                     <button type="button" class="btn btn-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="Maç durumunu değiştir">
                                                         <i class="fas fa-cog"></i>
@@ -242,7 +234,6 @@
                                                     </ul>
                                                 </div>
                                                 
-                                                <!-- Manuel Yorum Toplama Butonu -->
                                                 <form asp-action="YorumTopla" method="post" style="display:inline;" onsubmit="return confirm('Bu maç için hakem yorumları toplanacak. Devam etmek istiyor musunuz?')">
                                                     <input type="hidden" name="macId" value="@item.Id" />
                                                     <button type="submit" class="btn btn-success btn-sm" title="Bu maç için hakem yorumlarını topla">
@@ -250,7 +241,6 @@
                                                     </button>
                                                 </form>
                                                 
-                                                <!-- Otomatik Pozisyon Tespit Butonu -->
                                                 <form asp-action="OtomatikPozisyonTespit" method="post" style="display:inline;" onsubmit="return confirm('Bu maç için yorumlardan otomatik pozisyon tespiti yapılacak. Devam etmek istiyor musunuz?')">
                                                     <input type="hidden" name="macId" value="@item.Id" />
                                                     <button type="submit" class="btn btn-info btn-sm" title="Yorumlardan pozisyonları otomatik tespit et">
@@ -258,7 +248,6 @@
                                                     </button>
                                                 </form>
                                                 
-                                                <!-- Otomatik Toplama Toggle Butonu -->
                                                 <form asp-action="OtomatikYorumToplamaToggle" method="post" style="display:inline;">
                                                     <input type="hidden" name="macId" value="@item.Id" />
                                                     <button type="submit" class="btn @(item.OtomatikYorumToplamaAktif ? "btn-success" : "btn-outline-secondary") btn-sm" title="@(item.OtomatikYorumToplamaAktif ? "Otomatik yorum toplama AÇIK - Kapatmak için tıklayın" : "Otomatik yorum toplama KAPALI - Açmak için tıklayın")">
@@ -266,7 +255,6 @@
                                                     </button>
                                                 </form>
                                                 
-                                                <!-- YouTube Linkten Yorum Ekle Formu -->
                                                 <form asp-action="YouTubeLinktenYorumTopla" method="post" class="d-flex align-items-center" style="gap:6px;">
                                                     <input type="hidden" name="macId" value="@item.Id" />
                                                     <input type="hidden" name="hafta" value="@ViewBag.SecilenHafta" />
@@ -276,7 +264,6 @@
                                                     </button>
                                                 </form>
                                                 
-                                                <!-- YouTube Transcript'ten Pozisyon Ekle Butonu -->
                                                 <form asp-action="YouTubeTranscripttenPozisyonEkle" method="post" class="d-flex align-items-center" style="gap:6px;">
                                                     <input type="hidden" name="macId" value="@item.Id" />
                                                     <input type="hidden" name="hafta" value="@ViewBag.SecilenHafta" />
@@ -286,7 +273,6 @@
                                                     </button>
                                                 </form>
                                                 
-                                                <!-- Sil Butonu -->
                                                 <form asp-action="MacSil" method="post" style="display:inline;" onsubmit="return confirm('Bu maçı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!')">
                                                     <input type="hidden" name="id" value="@item.Id" />
                                                     <button type="submit" class="btn btn-danger btn-sm" title="Bu maçı sistemden tamamen sil">
@@ -306,82 +292,70 @@
     </div>
 </div>
 
-<script>
-function haftaSecildi() {
-    var seciliHafta = document.getElementById('haftaSecici').value;
-    window.location.href = '@Url.Action("Maclar", "Admin")' + '?hafta=' + seciliHafta;
+@if (TempData["JobId"] != null)
+{
+    <div class="progress mb-3" id="jobProgress">
+        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+             role="progressbar" 
+             id="progressBar"
+             style="width: 0%" 
+             aria-valuenow="0" 
+             aria-valuemin="0" 
+             aria-valuemax="100">
+            <span id="progressText">Başlatılıyor...</span>
+        </div>
+    </div>
 }
 
-        function yorumTopla(macId) {
-            if (confirm('Bu maç için yorum toplamaya başlamak istediğinizden emin misiniz?')) {
-                $.post('/Admin/YorumTopla', { macId: macId })
-                    .done(function(result) {
-                        if (result.success) {
-                            alert('Yorum toplama başlatıldı!');
-                            location.reload();
-                        } else {
-                            alert('Hata: ' + result.message);
-                        }
-                    })
-                    .fail(function() {
-                        alert('Yorum toplama sırasında bir hata oluştu.');
-                    });
-            }
-        }
+<script>
+    // Hafta seçici değiştiğinde sayfayı yeniden yönlendirir.
+    function haftaSecildi() {
+        var hafta = document.getElementById('haftaSecici').value;
+        window.location.href = '/Admin/Maclar?hafta=' + hafta;
+    }
 
-        function otomatikPozisyonTespit(macId) {
-            if (confirm('Bu maç için otomatik pozisyon tespiti yapmak istediğinizden emin misiniz? Yorumlardan pozisyonlar otomatik çıkarılacak.')) {
-                // Form oluştur ve submit et
-                var form = $('<form method="post" action="/Admin/OtomatikPozisyonTespit">');
-                form.append('<input type="hidden" name="macId" value="' + macId + '">');
-                form.append('<input type="hidden" name="__RequestVerificationToken" value="' + $('input[name="__RequestVerificationToken"]').val() + '">');
-                $('body').append(form);
-                form.submit();
-            }
-        }
-
-        @if (TempData["JobId"] != null)
-        {
-            <div id="jobStatus" class="alert alert-info">
-                <div class="d-flex align-items-center">
-                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                    <span id="jobMessage">İşlem başlatıldı, durum kontrol ediliyor...</span>
-                </div>
-                <div class="progress mt-2" style="height: 20px;">
-                    <div id="jobProgress" class="progress-bar" role="progressbar" style="width: 0%">0%</div>
-                </div>
-            </div>
-            
-            <script>
-                const jobId = '@TempData["JobId"]';
+    // Arka plan işlerinin durumunu kontrol eder ve progress bar'ı günceller.
+    function checkJobStatus() {
+        const jobId = '@TempData["JobId"]';
+        if (!jobId) return;
+        
+        fetch('/Admin/GetJobStatus?jobId=' + jobId)
+            .then(response => response.json())
+            .then(data => {
+                const progressBar = document.getElementById('progressBar');
+                const progressText = document.getElementById('progressText');
                 
-                function checkJobStatus() {
-                    // 353. satır civarındaki template literal'ı değiştirin:
-                    url: '/Admin/GetJobStatus?jobId=' + jobId,
-                        .then(response => response.json())
-                        .then(data => {
-                            document.getElementById('jobMessage').textContent = data.message;
-                            document.getElementById('jobProgress').style.width = data.progress + '%';
-                            document.getElementById('jobProgress').textContent = data.progress + '%';
-                            
-                            if (data.status === 'Completed' || data.status === 'Failed') {
-                                document.querySelector('.spinner-border').style.display = 'none';
-                                if (data.status === 'Completed') {
-                                    document.getElementById('jobStatus').className = 'alert alert-success';
-                                } else {
-                                    document.getElementById('jobStatus').className = 'alert alert-danger';
-                                }
-                            } else {
-                                setTimeout(checkJobStatus, 2000);
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Job status check error:', error);
-                            setTimeout(checkJobStatus, 5000);
-                        });
+                if (!progressBar || !progressText) return;
+
+                if (data.status === 'Running') {
+                    progressBar.style.width = data.progress + '%';
+                    progressBar.setAttribute('aria-valuenow', data.progress);
+                    progressText.textContent = data.message;
+                    setTimeout(checkJobStatus, 2000); // 2 saniyede bir tekrar kontrol et
+                } else if (data.status === 'Completed') {
+                    progressBar.style.width = '100%';
+                    progressBar.setAttribute('aria-valuenow', 100);
+                    progressText.textContent = 'Tamamlandı!';
+                    progressBar.classList.remove('progress-bar-animated');
+                    progressBar.classList.add('bg-success');
+                } else if (data.status === 'Failed') {
+                    progressBar.classList.remove('progress-bar-animated');
+                    progressBar.classList.add('bg-danger');
+                    progressText.textContent = 'Hata: ' + data.message;
                 }
-                
-                setTimeout(checkJobStatus, 1000);
-            </script>
-        }
+            })
+            .catch(error => {
+                console.error('Job status kontrolü hatası:', error);
+            });
+    }
+
+    // Sayfa yüklendiğinde, eğer bir JobId varsa durum kontrolünü başlat.
+    @if (TempData["JobId"] != null)
+    {
+        <text>
+        document.addEventListener('DOMContentLoaded', function() {
+            checkJobStatus();
+        });
+        </text>
+    }
 </script>
