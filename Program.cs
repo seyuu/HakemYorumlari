@@ -60,33 +60,31 @@ builder.Services.AddHttpClient("DefaultHttpClient")
 
  //
  // Entity Framework - Production için özel yapılandırma
- //
- // if (builder.Environment.IsProduction())
- // {
- //     var connectionString = Environment.GetEnvironmentVariable("SQL_CONNECTION_STRING");
+ if (builder.Environment.IsProduction())
+ {
+     var connectionString = Environment.GetEnvironmentVariable("SQL_CONNECTION_STRING");
 
- //     if (string.IsNullOrEmpty(connectionString))
- //     {
- //         throw new InvalidOperationException("SQL_CONNECTION_STRING environment variable production ortamında zorunludur.");
- //     }
+     if (string.IsNullOrEmpty(connectionString))
+     {
+         throw new InvalidOperationException("SQL_CONNECTION_STRING environment variable production ortamında zorunludur.");
+     }
 
- //     builder.Services.AddDbContext<ApplicationDbContext>(options =>
- //         options.UseSqlServer(connectionString));
- // }
- // else
- // {
- //     // Development modunda hem appsettings.json'dan hem environment variable'dan oku
- //     var connectionString = builder.Configuration.GetConnectionString("SQL_CONNECTION_STRING")
- //                                     ?? Environment.GetEnvironmentVariable("SQL_CONNECTION_STRING");
+     builder.Services.AddDbContext<ApplicationDbContext>(options =>
+         options.UseSqlServer(connectionString));
+ }
+ else
+ {
+     // Development modunda appsettings.json'dan oku
+     var connectionString = builder.Configuration.GetConnectionString("SQL_CONNECTION_STRING");
 
- //     if (string.IsNullOrEmpty(connectionString))
- //     {
- //         throw new InvalidOperationException("SQL_CONNECTION_STRING connection string development ortamında zorunludur.");
- //     }
+     if (string.IsNullOrEmpty(connectionString))
+     {
+         throw new InvalidOperationException("SQL_CONNECTION_STRING connection string development ortamında zorunludur.");
+     }
 
- //     builder.Services.AddDbContext<ApplicationDbContext>(options =>
- //         options.UseSqlServer(connectionString));
- // }
+     builder.Services.AddDbContext<ApplicationDbContext>(options =>
+         options.UseSqlServer(connectionString));
+ }
 
  // Servisleri ekle
  builder.Services.AddScoped<YouTubeScrapingService>();
