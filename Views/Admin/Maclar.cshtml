@@ -356,7 +356,7 @@ function haftaSecildi() {
                 const jobId = '@TempData["JobId"]';
                 
                 function checkJobStatus() {
-                    fetch(`/Admin/GetJobStatus?jobId=${jobId}`)
+                    fetch('/Admin/GetJobStatus?jobId=' + jobId)
                         .then(response => response.json())
                         .then(data => {
                             document.getElementById('jobMessage').textContent = data.message;
@@ -371,16 +371,15 @@ function haftaSecildi() {
                                     document.getElementById('jobStatus').className = 'alert alert-danger';
                                 }
                             } else {
-                                setTimeout(checkJobStatus, 2000); // 2 saniyede bir kontrol et
+                                setTimeout(checkJobStatus, 2000);
                             }
                         })
                         .catch(error => {
                             console.error('Job status check error:', error);
-                            setTimeout(checkJobStatus, 5000); // Hata durumunda 5 saniye bekle
+                            setTimeout(checkJobStatus, 5000);
                         });
                 }
                 
-                // Sayfa yüklendiğinde job durumunu kontrol etmeye başla
                 setTimeout(checkJobStatus, 1000);
             </script>
         }
