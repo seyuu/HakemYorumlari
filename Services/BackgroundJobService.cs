@@ -149,6 +149,44 @@ namespace HakemYorumlari.Services
 
             _logger.LogInformation($"Hafta {hafta} yorum toplama tamamlandı: {basariliSayisi}/{toplamMac} başarılı");
         }
+
+        public List<JobStatus> GetAllJobStatuses()
+        {
+            return _jobStatuses.Values.ToList();
+        }
+
+        public List<JobStatus> GetAllActiveJobs()
+        {
+            // Aktif job'ları JobStatus olarak döndür
+            return _jobQueue.Where(job => _jobStatuses.ContainsKey(job.Id) && 
+                                         (_jobStatuses[job.Id].Status == "Queued" || _jobStatuses[job.Id].Status == "Running"))
+                           .Select(job => _jobStatuses[job.Id])
+                           .ToList();
+        }
+
+        public bool CancelJob(string jobId)
+        {
+            try
+            {
+                // Job'ı completed olarak işaretle ve iptal mesajı ekle
+                if (_jobStatuses.ContainsKey(jobId))
+                {
+                    _jobStatuses[jobId] = new JobStatus
+                    {
+                        Status = "Cancelled",
+                        Message = "İşlem kullanıcı tarafından iptal edildi",
+                        Progress = 0,
+                        UpdatedAt = DateTime.Now
+                    };
+                    return true;
+                }
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 
     public class BackgroundJob

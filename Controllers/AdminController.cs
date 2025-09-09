@@ -740,37 +740,34 @@ namespace HakemYorumlari.Controllers
             return Json(debugInfo);
         }
 
-        // Job durumu kontrol endpoint'i
+        // Job durumu kontrol endpoint'leri
+        [HttpGet]
+        public IActionResult JobDurumu()
+        {
+            var aktifJoblar = _backgroundJobService.GetAllActiveJobs();
+            return View(aktifJoblar);
+        }
+
         [HttpGet]
         public IActionResult GetJobStatus(string jobId)
         {
-            if (string.IsNullOrEmpty(jobId))
-            {
-                return BadRequest("Job ID gerekli");
-            }
-
             var status = _backgroundJobService.GetJobStatus(jobId);
-            if (status == null)
-            {
-                return NotFound("Job bulunamadı");
-            }
-
-            return Json(new
-            {
-                status = status.Status,
-                message = status.Message,
-                progress = status.Progress,
-                updatedAt = status.UpdatedAt
-            });
+            return Json(status);
         }
 
-        // AJAX ile sürekli kontrol için
-        [HttpGet]
-        public IActionResult JobStatusPage(string jobId)
+        [HttpPost]
+        public IActionResult CancelJob(string jobId)
         {
-            ViewBag.JobId = jobId;
-            return View();
+            var result = _backgroundJobService.CancelJob(jobId);
+            return Json(new { success = result });
         }
-        
+
+        // AJAX endpoint for real-time updates
+        [HttpGet]
+        public IActionResult GetAllJobStatuses()
+        {
+            var statuses = _backgroundJobService.GetAllJobStatuses();
+            return Json(statuses);
+        }
     }
 }

@@ -642,6 +642,17 @@ namespace HakemYorumlari.Services
             await _context.SaveChangesAsync();
         }
 
+        /// <summary>
+        /// Video daha önce işlenmiş mi kontrol eder
+        /// </summary>
+        private async Task<bool> IsVideoAlreadyProcessed(string videoId, int macId)
+        {
+            return await _context.HakemYorumlari
+                .AnyAsync(h => h.KaynakLink != null && 
+                          h.KaynakLink.Contains(videoId) && 
+                          h.Pozisyon.MacId == macId);
+        }
+
         private string ExtractPozisyonAnahtar(string yorum)
         {
             var lowerYorum = yorum.ToLower();

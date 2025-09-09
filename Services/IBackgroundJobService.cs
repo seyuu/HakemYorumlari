@@ -6,5 +6,8 @@ namespace HakemYorumlari.Services
     {
         string EnqueueHaftaYorumToplama(int hafta);
         JobStatus? GetJobStatus(string jobId);
+        List<JobStatus> GetAllJobStatuses();
+        List<JobStatus> GetAllActiveJobs();
+        bool CancelJob(string jobId);
     }
 }

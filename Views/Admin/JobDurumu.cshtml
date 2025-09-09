@@ -1,0 +1,92 @@
+@{
+    ViewData["Title"] = "Job Durumu Takibi";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Aktif İşlemler</h3>
+                    <button class="btn btn-primary btn-sm float-right" onclick="refreshJobs()">Yenile</button>
+                </div>
+                <div class="card-body">
+                    <div id="jobList">
+                        <!-- Jobs will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshJobs() {
+    fetch('/Admin/GetAllJobStatuses')
+        .then(response => response.json())
+        .then(data => {
+            updateJobList(data);
+        });
+}
+
+function updateJobList(jobs) {
+    const jobList = document.getElementById('jobList');
+    if (Object.keys(jobs).length === 0) {
+        jobList.innerHTML = '<p class="text-muted">Şu anda aktif işlem yok.</p>';
+        return;
+    }
+    
+    let html = '';
+    for (const [jobId, status] of Object.entries(jobs)) {
+        const progressClass = status.Status === 'Running' ? 'progress-bar-animated' : '';
+        const statusClass = status.Status === 'Running' ? 'badge-primary' : 
+                           status.Status === 'Completed' ? 'badge-success' : 'badge-danger';
+        
+        html += `
+            <div class="job-item border rounded p-3 mb-3">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h5>İşlem ID: ${jobId}</h5>
+                        <p class="mb-1">${status.Message}</p>
+                        <small class="text-muted">Son Güncelleme: ${new Date(status.UpdatedAt).toLocaleString('tr-TR')}</small>
+                    </div>
+                    <div class="col-md-4 text-right">
+                        <span class="badge ${statusClass} mb-2">${status.Status}</span>
+                        <div class="progress mb-2">
+                            <div class="progress-bar ${progressClass}" style="width: ${status.Progress}%">
+                                %${status.Progress}
+                            </div>
+                        </div>
+                        ${status.Status === 'Running' ? `<button class="btn btn-sm btn-danger" onclick="cancelJob('${jobId}')">İptal Et</button>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    jobList.innerHTML = html;
+}
+
+function cancelJob(jobId) {
+    if (confirm('Bu işlemi iptal etmek istediğinizden emin misiniz?')) {
+        fetch('/Admin/CancelJob', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ jobId: jobId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                refreshJobs();
+            }
+        });
+    }
+}
+
+// Auto refresh every 5 seconds
+setInterval(refreshJobs, 5000);
+
+// Initial load
+refreshJobs();
+</script>
