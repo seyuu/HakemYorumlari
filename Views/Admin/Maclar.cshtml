@@ -356,7 +356,8 @@ function haftaSecildi() {
                 const jobId = '@TempData["JobId"]';
                 
                 function checkJobStatus() {
-                    fetch('/Admin/GetJobStatus?jobId=' + jobId)
+                    // 353. satır civarındaki template literal'ı değiştirin:
+                    url: '/Admin/GetJobStatus?jobId=' + jobId,
                         .then(response => response.json())
                         .then(data => {
                             document.getElementById('jobMessage').textContent = data.message;
