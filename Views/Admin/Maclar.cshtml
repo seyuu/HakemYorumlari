@@ -51,6 +51,13 @@
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     }
+                    @if (TempData["SuccessMessage"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            @TempData["SuccessMessage"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
                     @if (TempData["Error"] != null)
                     {
                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -331,5 +338,50 @@ function haftaSecildi() {
                 $('body').append(form);
                 form.submit();
             }
+        }
+
+        @if (TempData["JobId"] != null)
+        {
+            <div id="jobStatus" class="alert alert-info">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    <span id="jobMessage">İşlem başlatıldı, durum kontrol ediliyor...</span>
+                </div>
+                <div class="progress mt-2" style="height: 20px;">
+                    <div id="jobProgress" class="progress-bar" role="progressbar" style="width: 0%">0%</div>
+                </div>
+            </div>
+            
+            <script>
+                const jobId = '@TempData["JobId"]';
+                
+                function checkJobStatus() {
+                    fetch(`/Admin/GetJobStatus?jobId=${jobId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            document.getElementById('jobMessage').textContent = data.message;
+                            document.getElementById('jobProgress').style.width = data.progress + '%';
+                            document.getElementById('jobProgress').textContent = data.progress + '%';
+                            
+                            if (data.status === 'Completed' || data.status === 'Failed') {
+                                document.querySelector('.spinner-border').style.display = 'none';
+                                if (data.status === 'Completed') {
+                                    document.getElementById('jobStatus').className = 'alert alert-success';
+                                } else {
+                                    document.getElementById('jobStatus').className = 'alert alert-danger';
+                                }
+                            } else {
+                                setTimeout(checkJobStatus, 2000); // 2 saniyede bir kontrol et
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Job status check error:', error);
+                            setTimeout(checkJobStatus, 5000); // Hata durumunda 5 saniye bekle
+                        });
+                }
+                
+                // Sayfa yüklendiğinde job durumunu kontrol etmeye başla
+                setTimeout(checkJobStatus, 1000);
+            </script>
         }
 </script>
