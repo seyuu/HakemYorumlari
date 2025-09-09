@@ -152,16 +152,34 @@ namespace HakemYorumlari.Services
 
         public List<JobStatus> GetAllJobStatuses()
         {
-            return _jobStatuses.Values.ToList();
+            try 
+            {
+                return _jobStatuses?.Values?.ToList() ?? new List<JobStatus>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetAllJobStatuses hatası");
+                return new List<JobStatus>();
+            }
         }
 
         public List<JobStatus> GetAllActiveJobs()
         {
-            // Aktif job'ları JobStatus olarak döndür
-            return _jobQueue.Where(job => _jobStatuses.ContainsKey(job.Id) && 
-                                         (_jobStatuses[job.Id].Status == "Queued" || _jobStatuses[job.Id].Status == "Running"))
+            try
+            {
+                if (_jobQueue == null || _jobStatuses == null)
+                    return new List<JobStatus>();
+                    
+                return _jobQueue.Where(job => _jobStatuses.ContainsKey(job.Id) && 
+                                             (_jobStatuses[job.Id].Status == "Queued" || _jobStatuses[job.Id].Status == "Running"))
                            .Select(job => _jobStatuses[job.Id])
                            .ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetAllActiveJobs hatası");
+                return new List<JobStatus>();
+            }
         }
 
         public bool CancelJob(string jobId)

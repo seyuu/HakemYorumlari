@@ -756,6 +756,7 @@ namespace HakemYorumlari.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult CancelJob(string jobId)
         {
             var result = _backgroundJobService.CancelJob(jobId);

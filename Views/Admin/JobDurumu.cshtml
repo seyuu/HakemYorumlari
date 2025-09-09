@@ -2,6 +2,9 @@
     ViewData["Title"] = "Job Durumu Takibi";
 }
 
+@* Anti-forgery token ekle *@
+@Html.AntiForgeryToken()
+
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
@@ -31,33 +34,54 @@ function refreshJobs() {
 
 function updateJobList(jobs) {
     const jobList = document.getElementById('jobList');
-    if (Object.keys(jobs).length === 0) {
+    
+    // jobs null veya undefined kontrolü
+    if (!jobs || Object.keys(jobs).length === 0) {
         jobList.innerHTML = '<p class="text-muted">Şu anda aktif işlem yok.</p>';
         return;
     }
     
     let html = '';
     for (const [jobId, status] of Object.entries(jobs)) {
-        const progressClass = status.Status === 'Running' ? 'progress-bar-animated' : '';
-        const statusClass = status.Status === 'Running' ? 'badge-primary' : 
-                           status.Status === 'Completed' ? 'badge-success' : 'badge-danger';
+        // Status kontrolü
+        const jobStatus = status.Status || 'Unknown';
+        const jobMessage = status.Message || 'Mesaj yok';
+        const jobProgress = status.Progress || 0;
+        
+        // Tarih kontrolü ve formatı
+        let formattedDate = 'Bilinmiyor';
+        if (status.UpdatedAt) {
+            try {
+                const date = new Date(status.UpdatedAt);
+                if (!isNaN(date.getTime())) {
+                    formattedDate = date.toLocaleString('tr-TR');
+                }
+            } catch (e) {
+                console.error('Tarih formatı hatası:', e);
+            }
+        }
+        
+        const progressClass = jobStatus === 'Running' ? 'progress-bar-animated' : '';
+        const statusClass = jobStatus === 'Running' ? 'badge-primary' : 
+                           jobStatus === 'Completed' ? 'badge-success' : 
+                           jobStatus === 'Cancelled' ? 'badge-warning' : 'badge-danger';
         
         html += `
             <div class="job-item border rounded p-3 mb-3">
                 <div class="row">
                     <div class="col-md-8">
                         <h5>İşlem ID: ${jobId}</h5>
-                        <p class="mb-1">${status.Message}</p>
-                        <small class="text-muted">Son Güncelleme: ${new Date(status.UpdatedAt).toLocaleString('tr-TR')}</small>
+                        <p class="mb-1">${jobMessage}</p>
+                        <small class="text-muted">Son Güncelleme: ${formattedDate}</small>
                     </div>
                     <div class="col-md-4 text-right">
-                        <span class="badge ${statusClass} mb-2">${status.Status}</span>
+                        <span class="badge ${statusClass} mb-2">${jobStatus}</span>
                         <div class="progress mb-2">
-                            <div class="progress-bar ${progressClass}" style="width: ${status.Progress}%">
-                                %${status.Progress}
+                            <div class="progress-bar ${progressClass}" style="width: ${jobProgress}%">
+                                %${jobProgress}
                             </div>
                         </div>
-                        ${status.Status === 'Running' ? `<button class="btn btn-sm btn-danger" onclick="cancelJob('${jobId}')">İptal Et</button>` : ''}
+                        ${jobStatus === 'Running' ? `<button class="btn btn-sm btn-danger" onclick="cancelJob('${jobId}')">İptal Et</button>` : ''}
                     </div>
                 </div>
             </div>
@@ -68,10 +92,14 @@ function updateJobList(jobs) {
 
 function cancelJob(jobId) {
     if (confirm('Bu işlemi iptal etmek istediğinizden emin misiniz?')) {
+        // Anti-forgery token ekle
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+        
         fetch('/Admin/CancelJob', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'RequestVerificationToken': token
             },
             body: JSON.stringify({ jobId: jobId })
         })
@@ -79,7 +107,13 @@ function cancelJob(jobId) {
         .then(data => {
             if (data.success) {
                 refreshJobs();
+            } else {
+                alert('İşlem iptal edilemedi!');
             }
+        })
+        .catch(error => {
+            console.error('Hata:', error);
+            alert('Bir hata oluştu!');
         });
     }
 }
