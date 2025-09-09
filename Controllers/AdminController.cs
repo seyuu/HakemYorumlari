@@ -13,18 +13,21 @@ namespace HakemYorumlari.Controllers
         private readonly YouTubeScrapingService _youtubeService;
         private readonly HakemYorumuToplamaServisi _hakemYorumuToplamaServisi;
         private readonly IBackgroundJobService _backgroundJobService;
+        private readonly ILogger<AdminController> _logger;
 
         public AdminController(ApplicationDbContext context, 
                       FiksturGuncellemeServisi fiksturGuncellemeServisi,
                       YouTubeScrapingService youtubeService,
                       HakemYorumuToplamaServisi hakemYorumuToplamaServisi,
-                      IBackgroundJobService backgroundJobService)
+                      IBackgroundJobService backgroundJobService,
+                      ILogger<AdminController> logger)
         {
             _context = context;
             _fiksturGuncellemeServisi = fiksturGuncellemeServisi;
             _youtubeService = youtubeService;
             _hakemYorumuToplamaServisi = hakemYorumuToplamaServisi;
             _backgroundJobService = backgroundJobService;
+            _logger = logger;
         }
 
         // Admin Dashboard
@@ -747,28 +750,78 @@ namespace HakemYorumlari.Controllers
             var aktifJoblar = _backgroundJobService.GetAllActiveJobs();
             return View(aktifJoblar);
         }
-
+        
         [HttpGet]
         public IActionResult GetJobStatus(string jobId)
         {
             var status = _backgroundJobService.GetJobStatus(jobId);
             return Json(status);
         }
-
+        
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult CancelJob(string jobId)
+        public IActionResult CancelJob([FromBody] CancelJobRequest request)
         {
-            var result = _backgroundJobService.CancelJob(jobId);
-            return Json(new { success = result });
+            try
+            {
+                var result = _backgroundJobService.CancelJob(request.JobId);
+                return Json(new { success = result, message = result ? "İşlem iptal edildi" : "İşlem iptal edilemedi" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "CancelJob hatası: {JobId}", request.JobId);
+                return Json(new { success = false, message = "Bir hata oluştu" });
+            }
         }
-
+        
+        public class CancelJobRequest
+        {
+            public string JobId { get; set; }
+        }
+        
         // AJAX endpoint for real-time updates
         [HttpGet]
         public IActionResult GetAllJobStatuses()
         {
             var statuses = _backgroundJobService.GetAllJobStatuses();
             return Json(statuses);
+        }
+        
+        // YENİ: Haftalık yorum toplama job'ını başlat
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult HaftaTopluYorumBaslat(int hafta)
+        {
+            try
+            {
+                var jobId = _backgroundJobService.EnqueueHaftaYorumToplama(hafta); // StartHaftaTopluYorumTopla yerine EnqueueHaftaYorumToplama
+                TempData["SuccessMessage"] = $"Hafta {hafta} yorum toplama işlemi başlatıldı. Job ID: {jobId}";
+                return Json(new { success = true, jobId = jobId, message = $"Hafta {hafta} işlemi başlatıldı" });
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "İşlem başlatılırken hata: " + ex.Message;
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
+        
+        // YENİ: Mevcut hafta yorum toplama job'ını başlat
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult MevcutHaftaYorumBaslat()
+        {
+            try
+            {
+                var mevcutHafta = GetCurrentWeek(DateTime.Now);
+                var jobId = _backgroundJobService.EnqueueHaftaYorumToplama(mevcutHafta); // StartHaftaTopluYorumTopla yerine EnqueueHaftaYorumToplama
+                TempData["SuccessMessage"] = $"Mevcut hafta ({mevcutHafta}) yorum toplama işlemi başlatıldı. Job ID: {jobId}";
+                return Json(new { success = true, jobId = jobId, message = $"Mevcut hafta ({mevcutHafta}) işlemi başlatıldı" });
+            }
+            catch (Exception ex)
+            {
+                TempData["ErrorMessage"] = "İşlem başlatılırken hata: " + ex.Message;
+                return Json(new { success = false, message = ex.Message });
+            }
         }
     }
 }

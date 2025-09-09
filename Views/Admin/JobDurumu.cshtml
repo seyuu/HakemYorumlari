@@ -42,7 +42,9 @@ function updateJobList(jobs) {
     }
     
     let html = '';
-    for (const [jobId, status] of Object.entries(jobs)) {
+    let index = 0;
+    // Dictionary olarak işle (Object.entries kullan)
+    Object.entries(jobs).forEach(([jobId, status]) => {
         // Status kontrolü
         const jobStatus = status.Status || 'Unknown';
         const jobMessage = status.Message || 'Mesaj yok';
@@ -70,7 +72,7 @@ function updateJobList(jobs) {
             <div class="job-item border rounded p-3 mb-3">
                 <div class="row">
                     <div class="col-md-8">
-                        <h5>İşlem ID: ${jobId}</h5>
+                        <h5>İşlem #${index + 1} (${jobId})</h5>
                         <p class="mb-1">${jobMessage}</p>
                         <small class="text-muted">Son Güncelleme: ${formattedDate}</small>
                     </div>
@@ -86,7 +88,8 @@ function updateJobList(jobs) {
                 </div>
             </div>
         `;
-    }
+        index++;
+    });
     jobList.innerHTML = html;
 }
 

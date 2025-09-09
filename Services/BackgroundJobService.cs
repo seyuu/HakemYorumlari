@@ -150,16 +150,16 @@ namespace HakemYorumlari.Services
             _logger.LogInformation($"Hafta {hafta} yorum toplama tamamlandı: {basariliSayisi}/{toplamMac} başarılı");
         }
 
-        public List<JobStatus> GetAllJobStatuses()
+        public Dictionary<string, JobStatus> GetAllJobStatuses()
         {
             try 
             {
-                return _jobStatuses?.Values?.ToList() ?? new List<JobStatus>();
+                return _jobStatuses ?? new Dictionary<string, JobStatus>();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "GetAllJobStatuses hatası");
-                return new List<JobStatus>();
+                return new Dictionary<string, JobStatus>();
             }
         }
 
@@ -205,6 +205,11 @@ namespace HakemYorumlari.Services
                 return false;
             }
         }
+        public string StartHaftaTopluYorumTopla(int hafta)
+        {
+            // EnqueueHaftaYorumToplama metodunu kullan
+            return EnqueueHaftaYorumToplama(hafta);
+        }
     }
 
     public class BackgroundJob
@@ -227,4 +232,6 @@ namespace HakemYorumlari.Services
         public int Progress { get; set; } = 0;
         public DateTime UpdatedAt { get; set; } = DateTime.Now;
     }
+
+  
 }
