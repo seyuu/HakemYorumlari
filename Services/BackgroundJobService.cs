@@ -124,7 +124,8 @@ namespace HakemYorumlari.Services
                 { 
                     Status = "Running", 
                     Message = $"İşleniyor: {i + 1}/{toplamMac} maç (%{progress})",
-                    Progress = progress
+                    Progress = progress,
+                    UpdatedAt = DateTime.Now  // Bu satırı ekleyin
                 };
 
                 try

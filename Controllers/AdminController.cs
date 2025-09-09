@@ -771,5 +771,6 @@ namespace HakemYorumlari.Controllers
             ViewBag.JobId = jobId;
             return View();
         }
+        
     }
 }

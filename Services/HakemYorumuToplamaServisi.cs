@@ -638,6 +638,8 @@ namespace HakemYorumlari.Services
                 
                 _context.HakemYorumlari.Add(hakemYorumu);
             }
+            
+            await _context.SaveChangesAsync();
         }
 
         private string ExtractPozisyonAnahtar(string yorum)
