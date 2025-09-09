@@ -15,10 +15,14 @@ namespace HakemYorumlari.Controllers
         private readonly IBackgroundJobService _backgroundJobService;
 
         public AdminController(ApplicationDbContext context, 
+                      FiksturGuncellemeServisi fiksturGuncellemeServisi,
+                      YouTubeScrapingService youtubeService,
                       HakemYorumuToplamaServisi hakemYorumuToplamaServisi,
                       IBackgroundJobService backgroundJobService)
         {
             _context = context;
+            _fiksturGuncellemeServisi = fiksturGuncellemeServisi;
+            _youtubeService = youtubeService;
             _hakemYorumuToplamaServisi = hakemYorumuToplamaServisi;
             _backgroundJobService = backgroundJobService;
         }

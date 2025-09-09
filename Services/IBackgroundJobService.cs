@@ -1,3 +1,5 @@
+using HakemYorumlari.Services;
+
 namespace HakemYorumlari.Services
 {
     public interface IBackgroundJobService
