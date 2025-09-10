@@ -283,6 +283,9 @@ namespace HakemYorumlari.Services
             }
         }
 
+        // 286-365 satırları arasındaki ilk ProcessHaftaYorumToplama metodunu tamamen silin
+        // Aşağıdaki satırları silin:
+        /*
         private async Task ProcessHaftaYorumToplama(BackgroundJob job, CancellationToken cancellationToken)
         {
             try
@@ -291,53 +294,78 @@ namespace HakemYorumlari.Services
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var yorumToplamaServisi = scope.ServiceProvider.GetRequiredService<HakemYorumuToplamaServisi>();
                 
-                // Job parametrelerini al - dynamic yerine strongly typed
                 var parametersJson = JsonSerializer.Serialize(job.Parameters);
                 var parametersDoc = JsonDocument.Parse(parametersJson);
                 var hafta = parametersDoc.RootElement.GetProperty("hafta").GetInt32();
                 
                 _logger.LogInformation("Hafta {Hafta} için yorum toplama işlemi başlatılıyor", hafta);
                 
-                // Haftanın maçlarını al - dynamic kullanmadan
+                // Job durumunu güncelle
+                _jobStatuses[job.Id] = new JobStatus
+                {
+                    Status = "Running",
+                    Message = $"Hafta {hafta} maçları aranıyor...",
+                    UpdatedAt = DateTime.Now
+                };
+                
                 var haftaninMaclari = await context.Maclar
                     .Where(m => m.Hafta == hafta && 
                                m.OtomatikYorumToplamaAktif && 
                                !m.YorumlarToplandi && 
                                m.Durum == MacDurumu.Bitti &&
-                               DateTime.Now > m.MacTarihi.AddMinutes(150) &&
-                               m.MacTarihi > DateTime.Now.AddDays(-3))
+                               DateTime.Now > m.MacTarihi.AddMinutes(150))
                     .Take(5)
                     .ToListAsync(cancellationToken);
                 
                 _logger.LogInformation("Hafta {Hafta} için {MacSayisi} maç bulundu", hafta, haftaninMaclari.Count);
                 
-                foreach (var mac in haftaninMaclari)
+                if (!haftaninMaclari.Any())
                 {
-                    if (cancellationToken.IsCancellationRequested)
-                        break;
-                        
+                    _jobStatuses[job.Id] = new JobStatus
+                    {
+                        Status = "Completed",
+                        Message = $"Hafta {hafta} için işlenecek maç bulunamadı. Kriterler: Otomatik toplama aktif, yorumlar toplanmamış, maç bitmiş, 150dk+ geçmiş, 3 günden eski değil.",
+                        UpdatedAt = DateTime.Now
+                    };
+                    return;
+                }
+                
+                int islenenMacSayisi = 0;
+                
+                var macTasks = haftaninMaclari.Select(async (mac, index) => 
+                {
                     try
                     {
+                        // Rate limiting için staggered start
+                        await Task.Delay(index * 1000, cancellationToken);
+                        
                         _logger.LogInformation("Maç için yorum toplama başlatılıyor: {EvSahibi} vs {Deplasman}", 
                             mac.EvSahibi, mac.Deplasman);
                             
-                        // HakemYorumuToplamaServisi'nin doğru metodu
-                        await yorumToplamaServisi.MacIcinYorumTopla(mac.Id);
+                        var sonuc = await yorumToplamaServisi.MacIcinYorumTopla(mac.Id);
                         
-                        _logger.LogInformation("✅ Maç yorumları başarıyla toplandı: {EvSahibi} vs {Deplasman}", 
-                            mac.EvSahibi, mac.Deplasman);
+                        if (sonuc)
+                        {
+                            _logger.LogInformation("✅ Maç yorumları başarıyla toplandı: {EvSahibi} vs {Deplasman}", 
+                                mac.EvSahibi, mac.Deplasman);
+                        }
+                        
+                        return new { Mac = mac, Success = sonuc };
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "❌ Maç yorum toplama hatası: {EvSahibi} vs {Deplasman} - {Hata}", 
-                            mac.EvSahibi, mac.Deplasman, ex.Message);
+                        _logger.LogError(ex, "❌ Maç yorum toplama hatası: {EvSahibi} vs {Deplasman}", 
+                            mac.EvSahibi, mac.Deplasman);
+                        return new { Mac = mac, Success = false };
                     }
-                    
-                    // Rate limiting
-                    await Task.Delay(2000, cancellationToken);
-                }
+                }).ToArray();
                 
-                _logger.LogInformation("Hafta {Hafta} yorum toplama işlemi tamamlandı", hafta);
+                // Tüm maçların tamamlanmasını bekle
+                var results = await Task.WhenAll(macTasks);
+                
+                var basariliMaclar = results.Count(r => r.Success);
+                _logger.LogInformation("Hafta {Hafta} yorum toplama işlemi tamamlandı. {BasariliSayi}/{ToplamSayi} maç başarıyla işlendi.", 
+                    hafta, basariliMaclar, haftaninMaclari.Count);
             }
             catch (Exception ex)
             {
@@ -345,6 +373,7 @@ namespace HakemYorumlari.Services
                 throw;
             }
         }
+        */
 
         public List<JobStatus> GetAllActiveJobs()
         {
@@ -389,7 +418,97 @@ namespace HakemYorumlari.Services
         {
             return EnqueueHaftaYorumToplama(hafta);
         }
+
+            // En iyi performans için: Tek job + Asenkron + Progress tracking
+    private async Task ProcessHaftaYorumToplama(BackgroundJob job, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var yorumToplamaServisi = scope.ServiceProvider.GetRequiredService<HakemYorumuToplamaServisi>();
+            
+            var parametersJson = JsonSerializer.Serialize(job.Parameters);
+            var parametersDoc = JsonDocument.Parse(parametersJson);
+            var hafta = parametersDoc.RootElement.GetProperty("hafta").GetInt32();
+            
+            _logger.LogInformation("Hafta {Hafta} için yorum toplama işlemi başlatılıyor", hafta);
+            
+            // Job durumunu güncelle
+            _jobStatuses[job.Id] = new JobStatus
+            {
+                Status = "Running",
+                Message = $"Hafta {hafta} maçları aranıyor...",
+                UpdatedAt = DateTime.Now
+            };
+            
+            var haftaninMaclari = await context.Maclar
+                .Where(m => m.Hafta == hafta && 
+                           m.OtomatikYorumToplamaAktif && 
+                           !m.YorumlarToplandi && 
+                           m.Durum == MacDurumu.Bitti &&
+                           DateTime.Now > m.MacTarihi.AddMinutes(150))
+                .Take(5)
+                .ToListAsync(cancellationToken);
+            
+            _logger.LogInformation("Hafta {Hafta} için {MacSayisi} maç bulundu", hafta, haftaninMaclari.Count);
+            
+            if (!haftaninMaclari.Any())
+            {
+                _jobStatuses[job.Id] = new JobStatus
+                {
+                    Status = "Completed",
+                    Message = $"Hafta {hafta} için işlenecek maç bulunamadı. Kriterler: Otomatik toplama aktif, yorumlar toplanmamış, maç bitmiş, 150dk+ geçmiş, 3 günden eski değil.",
+                    UpdatedAt = DateTime.Now
+                };
+                return;
+            }
+            
+            // Concurrent processing with progress tracking
+            var semaphore = new SemaphoreSlim(3, 3); // Max 3 concurrent
+            var completedCount = 0;
+            var totalCount = haftaninMaclari.Count;
+            
+            var tasks = haftaninMaclari.Select(async mac =>
+            {
+                await semaphore.WaitAsync(cancellationToken);
+                try
+                {
+                    var result = await yorumToplamaServisi.MacIcinYorumTopla(mac.Id);
+                    
+                    var completed = Interlocked.Increment(ref completedCount);
+                    
+                    // Progress update
+                    _jobStatuses[job.Id] = new JobStatus
+                    {
+                        Status = "Running",
+                        Message = $"İşlenen: {completed}/{totalCount} - Son: {mac.EvSahibi} vs {mac.Deplasman}",
+                        Progress = (completed * 100) / totalCount,
+                        UpdatedAt = DateTime.Now
+                    };
+                    
+                    return new { Mac = mac, Success = result };
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
+            
+            var results = await Task.WhenAll(tasks);
+            var successCount = results.Count(r => r.Success);
+            
+            _logger.LogInformation("Hafta {Hafta} tamamlandı: {Success}/{Total} başarılı", 
+                hafta, successCount, totalCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ProcessHaftaYorumToplama genel hatası: {Hata}", ex.Message);
+            throw;
+        }
     }
+    }
+    
 
     public class BackgroundJob
     {
@@ -453,4 +572,5 @@ namespace HakemYorumlari.Services
         public JobMetrics? SlowestJob { get; set; }
         public JobMetrics? FastestJob { get; set; }
     }
+    
 }

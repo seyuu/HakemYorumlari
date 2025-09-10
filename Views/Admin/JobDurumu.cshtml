@@ -45,45 +45,65 @@ function updateJobList(jobs) {
     let index = 0;
     // Dictionary olarak işle (Object.entries kullan)
     Object.entries(jobs).forEach(([jobId, status]) => {
-        // Status kontrolü
+        // Status kontrolü - GENİŞLETİLMİŞ MAPPING
         const jobStatus = status.Status || 'Unknown';
         const jobMessage = status.Message || 'Mesaj yok';
         const jobProgress = status.Progress || 0;
         
-        // Tarih kontrolü ve formatı
+        // Tarih kontrolü ve formatı - İYİLEŞTİRİLMİŞ
         let formattedDate = 'Bilinmiyor';
         if (status.UpdatedAt) {
             try {
-                const date = new Date(status.UpdatedAt);
-                if (!isNaN(date.getTime())) {
+                // ISO string veya .NET tarih formatını handle et
+                let dateStr = status.UpdatedAt;
+                if (typeof dateStr === 'string' && dateStr.includes('/Date(')) {
+                    // .NET JSON tarih formatı: /Date(1234567890000)/
+                    const timestamp = parseInt(dateStr.match(/\d+/)[0]);
+                    const date = new Date(timestamp);
                     formattedDate = date.toLocaleString('tr-TR');
+                } else {
+                    const date = new Date(dateStr);
+                    if (!isNaN(date.getTime())) {
+                        formattedDate = date.toLocaleString('tr-TR');
+                    }
                 }
             } catch (e) {
-                console.error('Tarih formatı hatası:', e);
+                console.error('Tarih formatı hatası:', e, status.UpdatedAt);
+                formattedDate = 'Tarih hatası';
             }
         }
         
-        const progressClass = jobStatus === 'Running' ? 'progress-bar-animated' : '';
+        // GENİŞLETİLMİŞ STATUS MAPPING
+        const progressClass = (jobStatus === 'Running' || jobStatus === 'Queued') ? 'progress-bar-animated' : '';
         const statusClass = jobStatus === 'Running' ? 'badge-primary' : 
                            jobStatus === 'Completed' ? 'badge-success' : 
-                           jobStatus === 'Cancelled' ? 'badge-warning' : 'badge-danger';
+                           jobStatus === 'Cancelled' ? 'badge-warning' :
+                           jobStatus === 'Queued' ? 'badge-info' :
+                           jobStatus === 'Failed' ? 'badge-danger' : 'badge-secondary';
+        
+        // STATUS DISPLAY - Türkçe çeviri
+        const statusDisplay = jobStatus === 'Running' ? 'Çalışıyor' :
+                             jobStatus === 'Completed' ? 'Tamamlandı' :
+                             jobStatus === 'Cancelled' ? 'İptal Edildi' :
+                             jobStatus === 'Queued' ? 'Kuyrukta' :
+                             jobStatus === 'Failed' ? 'Başarısız' : jobStatus;
         
         html += `
             <div class="job-item border rounded p-3 mb-3">
                 <div class="row">
                     <div class="col-md-8">
-                        <h5>İşlem #${index + 1} (${jobId})</h5>
+                        <h5>İşlem #${index + 1} (${jobId.substring(0, 8)}...)</h5>
                         <p class="mb-1">${jobMessage}</p>
                         <small class="text-muted">Son Güncelleme: ${formattedDate}</small>
                     </div>
                     <div class="col-md-4 text-right">
-                        <span class="badge ${statusClass} mb-2">${jobStatus}</span>
+                        <span class="badge ${statusClass} mb-2">${statusDisplay}</span>
                         <div class="progress mb-2">
                             <div class="progress-bar ${progressClass}" style="width: ${jobProgress}%">
                                 %${jobProgress}
                             </div>
                         </div>
-                        ${jobStatus === 'Running' ? `<button class="btn btn-sm btn-danger" onclick="cancelJob('${jobId}')">İptal Et</button>` : ''}
+                        ${(jobStatus === 'Running' || jobStatus === 'Queued') ? `<button class="btn btn-sm btn-danger" onclick="cancelJob('${jobId}')">İptal Et</button>` : ''}
                     </div>
                 </div>
             </div>
