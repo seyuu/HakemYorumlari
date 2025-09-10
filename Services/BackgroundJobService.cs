@@ -93,16 +93,17 @@ namespace HakemYorumlari.Services
                 var result = new Dictionary<string, JobStatus>(_jobStatuses);
                 _logger.LogInformation($"GetAllJobStatuses çağrıldı - {result.Count} job durumu döndürülüyor");
                 
-                // Eğer boşsa test job'ı ekle
+                // DEBUG: Eğer boşsa otomatik job başlat
                 if (result.Count == 0)
                 {
-                    result["test-job"] = new JobStatus 
-                    { 
-                        Status = "Info", 
-                        Message = "Henüz aktif job yok. Manuel job başlatabilirsiniz.",
-                        Progress = 0,
-                        UpdatedAt = DateTime.Now
-                    };
+                    _logger.LogWarning("Job dictionary boş! Otomatik job başlatılıyor...");
+                    
+                    // Test için hafta 1 job'ı başlat
+                    var testJobId = EnqueueHaftaYorumToplama(1);
+                    _logger.LogInformation($"Test job başlatıldı: {testJobId}");
+                    
+                    // Güncellenmiş dictionary'yi döndür
+                    result = new Dictionary<string, JobStatus>(_jobStatuses);
                 }
                 
                 return result;
@@ -110,23 +111,18 @@ namespace HakemYorumlari.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "GetAllJobStatuses hatası");
-                return new Dictionary<string, JobStatus>
-                {
-                    ["error-job"] = new JobStatus 
-                    { 
-                        Status = "Error", 
-                        Message = "Job durumları alınırken hata oluştu: " + ex.Message,
-                        Progress = 0,
-                        UpdatedAt = DateTime.Now
-                    }
-                };
+                return new Dictionary<string, JobStatus>();
             }
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("BackgroundJobService başlatıldı - Otomatik job kontrolü aktif");
-
+            
+            // İlk başlangıçta test job'ı ekle
+            var initialJobId = EnqueueHaftaYorumToplama(1);
+            _logger.LogInformation($"İlk test job başlatıldı: {initialJobId}");
+        
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
@@ -134,13 +130,15 @@ namespace HakemYorumlari.Services
                     // Otomatik job kontrolü (her 5 dakikada bir)
                     if (DateTime.Now - _lastAutoJobCheck > TimeSpan.FromMinutes(5))
                     {
+                        _logger.LogInformation("Otomatik job kontrolü yapılıyor...");
                         await CheckAndEnqueueAutoJobs();
                         _lastAutoJobCheck = DateTime.Now;
                     }
-
+        
                     // Kuyruktaki job'ları işle
                     if (_jobQueue.TryDequeue(out var job))
                     {
+                        _logger.LogInformation($"Job işleniyor: {job.Id}");
                         await ProcessJob(job, stoppingToken);
                     }
                     else

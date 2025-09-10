@@ -184,3 +184,35 @@ function startManualJob() {
     }
 }
 </script>
+
+<div class="mb-3">
+    <button type="button" class="btn btn-success" onclick="startTestJob()">
+        <i class="fas fa-play"></i> Test Job Başlat (Hafta 1)
+    </button>
+</div>
+
+<script>
+function startTestJob() {
+    fetch('/Admin/StartHaftaYorumToplama', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+        },
+        body: JSON.stringify({ hafta: 1 })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ Job başlatıldı: ' + data.jobId);
+            refreshJobs();
+        } else {
+            alert('❌ Hata: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Hata:', error);
+        alert('❌ Bir hata oluştu!');
+    });
+}
+</script>
