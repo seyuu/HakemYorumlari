@@ -25,7 +25,7 @@
 
 <script>
 function refreshJobs() {
-    fetch('/Admin/GetAllJobStatuses')
+    fetch('/Admin/Api/JobStatus')
         .then(response => response.json())
         .then(data => {
             updateJobList(data);
