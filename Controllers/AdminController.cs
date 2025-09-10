@@ -747,10 +747,27 @@ namespace HakemYorumlari.Controllers
         [HttpGet]
         public IActionResult JobDurumu()
         {
+            // AJAX request ise JSON döndür
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest" || 
+                Request.Headers["Accept"].ToString().Contains("application/json"))
+            {
+                var jobStatuses = _backgroundJobService.GetAllJobStatuses();
+                return Json(jobStatuses);
+            }
+            
+            // Normal request ise View döndür
             var aktifJoblar = _backgroundJobService.GetAllActiveJobs();
             return View(aktifJoblar);
         }
         
+        // Alternatif: Ayrı bir API endpoint ekle
+        [HttpGet]
+        [Route("Admin/Api/JobStatus")]
+        public IActionResult GetAllJobStatuses()
+        {
+            var jobStatuses = _backgroundJobService.GetAllJobStatuses();
+            return Json(jobStatuses);
+        }
         [HttpGet]
         public IActionResult GetJobStatus(string jobId)
         {
@@ -777,14 +794,6 @@ namespace HakemYorumlari.Controllers
         public class CancelJobRequest
         {
             public string JobId { get; set; }
-        }
-        
-        // AJAX endpoint for real-time updates
-        [HttpGet]
-        public IActionResult GetAllJobStatuses()
-        {
-            var statuses = _backgroundJobService.GetAllJobStatuses();
-            return Json(statuses);
         }
         
         // YENİ: Haftalık yorum toplama job'ını başlat

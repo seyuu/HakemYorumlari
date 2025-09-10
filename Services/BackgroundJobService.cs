@@ -283,98 +283,6 @@ namespace HakemYorumlari.Services
             }
         }
 
-        // 286-365 satırları arasındaki ilk ProcessHaftaYorumToplama metodunu tamamen silin
-        // Aşağıdaki satırları silin:
-        /*
-        private async Task ProcessHaftaYorumToplama(BackgroundJob job, CancellationToken cancellationToken)
-        {
-            try
-            {
-                using var scope = _serviceProvider.CreateScope();
-                var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                var yorumToplamaServisi = scope.ServiceProvider.GetRequiredService<HakemYorumuToplamaServisi>();
-                
-                var parametersJson = JsonSerializer.Serialize(job.Parameters);
-                var parametersDoc = JsonDocument.Parse(parametersJson);
-                var hafta = parametersDoc.RootElement.GetProperty("hafta").GetInt32();
-                
-                _logger.LogInformation("Hafta {Hafta} için yorum toplama işlemi başlatılıyor", hafta);
-                
-                // Job durumunu güncelle
-                _jobStatuses[job.Id] = new JobStatus
-                {
-                    Status = "Running",
-                    Message = $"Hafta {hafta} maçları aranıyor...",
-                    UpdatedAt = DateTime.Now
-                };
-                
-                var haftaninMaclari = await context.Maclar
-                    .Where(m => m.Hafta == hafta && 
-                               m.OtomatikYorumToplamaAktif && 
-                               !m.YorumlarToplandi && 
-                               m.Durum == MacDurumu.Bitti &&
-                               DateTime.Now > m.MacTarihi.AddMinutes(150))
-                    .Take(5)
-                    .ToListAsync(cancellationToken);
-                
-                _logger.LogInformation("Hafta {Hafta} için {MacSayisi} maç bulundu", hafta, haftaninMaclari.Count);
-                
-                if (!haftaninMaclari.Any())
-                {
-                    _jobStatuses[job.Id] = new JobStatus
-                    {
-                        Status = "Completed",
-                        Message = $"Hafta {hafta} için işlenecek maç bulunamadı. Kriterler: Otomatik toplama aktif, yorumlar toplanmamış, maç bitmiş, 150dk+ geçmiş, 3 günden eski değil.",
-                        UpdatedAt = DateTime.Now
-                    };
-                    return;
-                }
-                
-                int islenenMacSayisi = 0;
-                
-                var macTasks = haftaninMaclari.Select(async (mac, index) => 
-                {
-                    try
-                    {
-                        // Rate limiting için staggered start
-                        await Task.Delay(index * 1000, cancellationToken);
-                        
-                        _logger.LogInformation("Maç için yorum toplama başlatılıyor: {EvSahibi} vs {Deplasman}", 
-                            mac.EvSahibi, mac.Deplasman);
-                            
-                        var sonuc = await yorumToplamaServisi.MacIcinYorumTopla(mac.Id);
-                        
-                        if (sonuc)
-                        {
-                            _logger.LogInformation("✅ Maç yorumları başarıyla toplandı: {EvSahibi} vs {Deplasman}", 
-                                mac.EvSahibi, mac.Deplasman);
-                        }
-                        
-                        return new { Mac = mac, Success = sonuc };
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "❌ Maç yorum toplama hatası: {EvSahibi} vs {Deplasman}", 
-                            mac.EvSahibi, mac.Deplasman);
-                        return new { Mac = mac, Success = false };
-                    }
-                }).ToArray();
-                
-                // Tüm maçların tamamlanmasını bekle
-                var results = await Task.WhenAll(macTasks);
-                
-                var basariliMaclar = results.Count(r => r.Success);
-                _logger.LogInformation("Hafta {Hafta} yorum toplama işlemi tamamlandı. {BasariliSayi}/{ToplamSayi} maç başarıyla işlendi.", 
-                    hafta, basariliMaclar, haftaninMaclari.Count);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "ProcessHaftaYorumToplama genel hatası: {Hata}", ex.Message);
-                throw;
-            }
-        }
-        */
-
         public List<JobStatus> GetAllActiveJobs()
         {
             try
@@ -422,6 +330,8 @@ namespace HakemYorumlari.Services
             // En iyi performans için: Tek job + Asenkron + Progress tracking
     private async Task ProcessHaftaYorumToplama(BackgroundJob job, CancellationToken cancellationToken)
     {
+        int hafta = 0; // Hafta değişkenini metodun başında tanımla
+        
         try
         {
             using var scope = _serviceProvider.CreateScope();
@@ -430,7 +340,7 @@ namespace HakemYorumlari.Services
             
             var parametersJson = JsonSerializer.Serialize(job.Parameters);
             var parametersDoc = JsonDocument.Parse(parametersJson);
-            var hafta = parametersDoc.RootElement.GetProperty("hafta").GetInt32();
+            hafta = parametersDoc.RootElement.GetProperty("hafta").GetInt32(); // Burada değer ata
             
             _logger.LogInformation("Hafta {Hafta} için yorum toplama işlemi başlatılıyor", hafta);
             
@@ -498,7 +408,7 @@ namespace HakemYorumlari.Services
             var results = await Task.WhenAll(tasks);
             var successCount = results.Count(r => r.Success);
             
-            // Final status update - Bu eksikti!
+            // Final status update ekle - Bu eksikti!
             _jobStatuses[job.Id] = new JobStatus
             {
                 Status = "Completed",
@@ -513,6 +423,20 @@ namespace HakemYorumlari.Services
         catch (Exception ex)
         {
             _logger.LogError(ex, "ProcessHaftaYorumToplama genel hatası: {Hata}", ex.Message);
+            
+            // Artık hafta değişkeni erişilebilir
+            _jobStatuses[job.Id] = new JobStatus
+            {
+                Status = "Failed",
+                Message = $"Hafta {hafta} işlemi başarısız: {ex.Message}",
+                UpdatedAt = DateTime.Now,
+                ErrorDetails = new ErrorDetails
+                {
+                    Message = ex.Message,
+                    StackTrace = ex.StackTrace
+                }
+            };
+            
             throw;
         }
     }
