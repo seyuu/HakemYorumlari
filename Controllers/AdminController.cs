@@ -832,5 +832,23 @@ namespace HakemYorumlari.Controllers
                 return Json(new { success = false, message = ex.Message });
             }
         }
+        
+        // YENİ: Eksik endpoint ekleniyor
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult StartHaftaYorumToplama()
+        {
+            try
+            {
+                var mevcutHafta = GetCurrentWeek(DateTime.Now);
+                var jobId = _backgroundJobService.EnqueueHaftaYorumToplama(mevcutHafta);
+                return Json(new { success = true, jobId = jobId, message = $"Hafta {mevcutHafta} yorum toplama işlemi başlatıldı" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "StartHaftaYorumToplama hatası");
+                return Json(new { success = false, message = ex.Message });
+            }
+        }
     }
 }
