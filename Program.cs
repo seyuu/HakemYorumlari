@@ -95,10 +95,14 @@ builder.Services.AddHttpClient("DefaultHttpClient")
  builder.Services.AddScoped<PozisyonOtomatikTespitServisi>();
  builder.Services.AddScoped<FiksturGuncellemeServisi>();
  builder.Services.AddHostedService<MacTakipBackgroundService>();
+ // Mevcut kayıt (YANLIŞ):
  builder.Services.AddSingleton<BackgroundJobService>();
  builder.Services.AddSingleton<IBackgroundJobService>(provider => provider.GetService<BackgroundJobService>());
  builder.Services.AddHostedService(provider => provider.GetService<BackgroundJobService>());
-
+ 
+ // Doğru kayıt şekli:
+ builder.Services.AddSingleton<IBackgroundJobService, BackgroundJobService>();
+ builder.Services.AddHostedService<BackgroundJobService>();
  // Mevcut servis kayıtlarına ekle
  builder.Services.AddScoped<AIVideoAnalysisService>();
 

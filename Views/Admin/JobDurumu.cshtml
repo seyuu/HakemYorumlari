@@ -25,7 +25,7 @@
 
 <script>
 function refreshJobs() {
-    fetch('/Admin/Api/JobStatus')
+    fetch('/Admin/Api/JobStatus')  // ✅ Doğru URL
         .then(response => response.json())
         .then(data => {
             updateJobList(data);
@@ -49,6 +49,12 @@ function updateJobList(jobs) {
         const jobStatus = status.Status || 'Unknown';
         const jobMessage = status.Message || 'Mesaj yok';
         const jobProgress = status.Progress || 0;
+        
+        // Progress text düzeltmesi
+        const progressText = jobProgress > 0 ? `${jobProgress}%` : 
+                        (jobStatus === 'Running' ? 'Başlatılıyor...' : 
+                         jobStatus === 'Queued' ? 'Kuyrukta bekliyor...' : 
+                         jobStatus === 'Completed' ? '100%' : '0%');
         
         // Tarih kontrolü ve formatı - İYİLEŞTİRİLMİŞ
         let formattedDate = 'Bilinmiyor';
@@ -99,8 +105,8 @@ function updateJobList(jobs) {
                     <div class="col-md-4 text-right">
                         <span class="badge ${statusClass} mb-2">${statusDisplay}</span>
                         <div class="progress mb-2">
-                            <div class="progress-bar ${progressClass}" style="width: ${jobProgress}%">
-                                %${jobProgress}
+                            <div class="progress-bar ${progressClass}" style="width: ${jobProgress > 0 ? jobProgress : (jobStatus === 'Completed' ? 100 : 0)}%">
+                                ${progressText}
                             </div>
                         </div>
                         ${(jobStatus === 'Running' || jobStatus === 'Queued') ? `<button class="btn btn-sm btn-danger" onclick="cancelJob('${jobId}')">İptal Et</button>` : ''}
@@ -146,4 +152,35 @@ setInterval(refreshJobs, 5000);
 
 // Initial load
 refreshJobs();
+</script>
+
+<div class="mb-3">
+    <button type="button" class="btn btn-primary" onclick="startManualJob()">
+        <i class="fas fa-play"></i> Manuel Job Başlat
+    </button>
+</div>
+
+<script>
+function startManualJob() {
+    const hafta = prompt('Hangi hafta için job başlatılsın?', '1');
+    if (hafta) {
+        fetch('/Admin/StartHaftaYorumToplama', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+            },
+            body: JSON.stringify({ hafta: parseInt(hafta) })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Job başlatıldı: ' + data.jobId);
+                refreshJobs();
+            } else {
+                alert('Hata: ' + data.message);
+            }
+        });
+    }
+}
 </script>

@@ -90,12 +90,36 @@ namespace HakemYorumlari.Services
         {
             try
             {
-                return new Dictionary<string, JobStatus>(_jobStatuses);
+                var result = new Dictionary<string, JobStatus>(_jobStatuses);
+                _logger.LogInformation($"GetAllJobStatuses çağrıldı - {result.Count} job durumu döndürülüyor");
+                
+                // Eğer boşsa test job'ı ekle
+                if (result.Count == 0)
+                {
+                    result["test-job"] = new JobStatus 
+                    { 
+                        Status = "Info", 
+                        Message = "Henüz aktif job yok. Manuel job başlatabilirsiniz.",
+                        Progress = 0,
+                        UpdatedAt = DateTime.Now
+                    };
+                }
+                
+                return result;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "GetAllJobStatuses hatası");
-                return new Dictionary<string, JobStatus>();
+                return new Dictionary<string, JobStatus>
+                {
+                    ["error-job"] = new JobStatus 
+                    { 
+                        Status = "Error", 
+                        Message = "Job durumları alınırken hata oluştu: " + ex.Message,
+                        Progress = 0,
+                        UpdatedAt = DateTime.Now
+                    }
+                };
             }
         }
 
