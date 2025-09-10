@@ -498,6 +498,15 @@ namespace HakemYorumlari.Services
             var results = await Task.WhenAll(tasks);
             var successCount = results.Count(r => r.Success);
             
+            // Final status update - Bu eksikti!
+            _jobStatuses[job.Id] = new JobStatus
+            {
+                Status = "Completed",
+                Message = $"Hafta {hafta} tamamlandı: {successCount}/{totalCount} maç başarıyla işlendi",
+                Progress = 100,
+                UpdatedAt = DateTime.Now
+            };
+            
             _logger.LogInformation("Hafta {Hafta} tamamlandı: {Success}/{Total} başarılı", 
                 hafta, successCount, totalCount);
         }
