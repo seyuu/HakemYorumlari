@@ -90,21 +90,15 @@ builder.Services.AddHttpClient("DefaultHttpClient")
  builder.Services.AddScoped<YouTubeScrapingService>();
  builder.Services.AddScoped<TVKanalScrapingService>();
  builder.Services.AddScoped<HakemYorumuToplamaServisi>();
+ builder.Services.AddScoped<AIVideoAnalysisService>();
  builder.Services.AddScoped<BeINSportsEmbedService>();
  builder.Services.AddScoped<SkorCekmeServisi>();
  builder.Services.AddScoped<PozisyonOtomatikTespitServisi>();
  builder.Services.AddScoped<FiksturGuncellemeServisi>();
  builder.Services.AddHostedService<MacTakipBackgroundService>();
- // Mevcut kayıt (YANLIŞ):
- builder.Services.AddSingleton<BackgroundJobService>();
- builder.Services.AddSingleton<IBackgroundJobService>(provider => provider.GetService<BackgroundJobService>());
- builder.Services.AddHostedService(provider => provider.GetService<BackgroundJobService>());
- 
- // Doğru kayıt şekli:
+
+ // BackgroundJobService - SADECE BU SATIRI BIRAK:
  builder.Services.AddSingleton<IBackgroundJobService, BackgroundJobService>();
- builder.Services.AddHostedService<BackgroundJobService>();
- // Mevcut servis kayıtlarına ekle
- builder.Services.AddScoped<AIVideoAnalysisService>();
 
  // WebApplication'ı oluştur
  var app = builder.Build();
