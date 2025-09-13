@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using HakemYorumlari.Data;
 using HakemYorumlari.Models;
@@ -38,7 +37,7 @@ namespace HakemYorumlari.Services
 
             _jobQueue.Enqueue(job);
             _jobStatuses[jobId] = new JobStatus { Status = "Queued", Message = "İşlem kuyruğa eklendi" };
-            
+
             _logger.LogInformation("Hafta {Hafta} yorum toplama işi kuyruğa eklendi: {JobId}", hafta, jobId);
             return jobId;
         }
@@ -70,8 +69,8 @@ namespace HakemYorumlari.Services
         public JobPerformanceReport GetPerformanceReport()
         {
             var metrics = _jobMetrics.Values.ToList();
-            var avgDuration = metrics.Any() ? 
-                TimeSpan.FromMilliseconds(metrics.Average(m => m.Duration.TotalMilliseconds)) : 
+            var avgDuration = metrics.Any() ?
+                TimeSpan.FromMilliseconds(metrics.Average(m => m.Duration.TotalMilliseconds)) :
                 TimeSpan.Zero;
 
             return new JobPerformanceReport
@@ -92,20 +91,20 @@ namespace HakemYorumlari.Services
             {
                 var result = new Dictionary<string, JobStatus>(_jobStatuses);
                 _logger.LogInformation($"GetAllJobStatuses çağrıldı - {result.Count} job durumu döndürülüyor");
-                
+
                 // DEBUG: Eğer boşsa otomatik job başlat
                 if (result.Count == 0)
                 {
                     _logger.LogWarning("Job dictionary boş! Otomatik job başlatılıyor...");
-                    
+
                     // Test için hafta 1 job'ı başlat
                     var testJobId = EnqueueHaftaYorumToplama(1);
                     _logger.LogInformation($"Test job başlatıldı: {testJobId}");
-                    
+
                     // Güncellenmiş dictionary'yi döndür
                     result = new Dictionary<string, JobStatus>(_jobStatuses);
                 }
-                
+
                 return result;
             }
             catch (Exception ex)
@@ -118,11 +117,11 @@ namespace HakemYorumlari.Services
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("BackgroundJobService başlatıldı - Otomatik job kontrolü aktif");
-            
+
             // İlk başlangıçta test job'ı ekle
             var initialJobId = EnqueueHaftaYorumToplama(1);
             _logger.LogInformation($"İlk test job başlatıldı: {initialJobId}");
-        
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
@@ -134,7 +133,7 @@ namespace HakemYorumlari.Services
                         await CheckAndEnqueueAutoJobs();
                         _lastAutoJobCheck = DateTime.Now;
                     }
-        
+
                     // Kuyruktaki job'ları işle
                     if (_jobQueue.TryDequeue(out var job))
                     {
@@ -166,10 +165,10 @@ namespace HakemYorumlari.Services
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
                 var simdi = DateTime.Now;
-                
+
                 // Otomatik yorum toplanacak maçları kontrol et
                 var yorumToplanacakMaclar = await context.Maclar
-                    .Where(m => m.OtomatikYorumToplamaAktif && 
+                    .Where(m => m.OtomatikYorumToplamaAktif &&
                                !m.YorumlarToplandi &&
                                m.Durum == MacDurumu.Bitti &&
                                m.MacTarihi.AddMinutes(150) <= simdi) // Maç bitiminden 2.5 saat sonra
@@ -205,13 +204,13 @@ namespace HakemYorumlari.Services
                 JobType = job.Type.ToString(),
                 StartTime = DateTime.Now
             };
-            
+
             try
             {
                 _jobStatuses[job.Id] = new JobStatus { Status = "Running", Message = "İşlem çalışıyor...", UpdatedAt = DateTime.Now };
-                
+
                 // Structured logging - parametreleri doğru sırada ver
-                _logger.LogInformation("Job başlatıldı: {JobId} - {JobType} - {Parameters}", 
+                _logger.LogInformation("Job başlatıldı: {JobId} - {JobType} - {Parameters}",
                     job.Id, job.Type.ToString(), JsonSerializer.Serialize(job.Parameters));
 
                 switch (job.Type)
@@ -225,21 +224,21 @@ namespace HakemYorumlari.Services
                 jobMetrics.EndTime = DateTime.Now;
                 jobMetrics.Duration = stopwatch.Elapsed;
                 jobMetrics.Status = "Completed";
-                
-                _jobStatuses[job.Id] = new JobStatus 
-                { 
-                    Status = "Completed", 
-                    Message = "İşlem başarıyla tamamlandı", 
+
+                _jobStatuses[job.Id] = new JobStatus
+                {
+                    Status = "Completed",
+                    Message = "İşlem başarıyla tamamlandı",
                     UpdatedAt = DateTime.Now,
                     Duration = stopwatch.Elapsed
                 };
-                
+
                 _successfulJobs++;
                 _totalJobsProcessed++;
-                
+
                 // Performance logging
                 _logger.LogInformation("✅ Job başarıyla tamamlandı: {JobId} - Süre: {Duration}ms - Toplam İşlenen: {TotalJobs} - Başarı Oranı: {SuccessRate}%",
-                    job.Id, stopwatch.ElapsedMilliseconds, _totalJobsProcessed, 
+                    job.Id, stopwatch.ElapsedMilliseconds, _totalJobsProcessed,
                     _totalJobsProcessed > 0 ? (_successfulJobs * 100 / _totalJobsProcessed) : 0);
             }
             catch (OperationCanceledException)
@@ -248,14 +247,14 @@ namespace HakemYorumlari.Services
                 jobMetrics.Status = "Cancelled";
                 jobMetrics.EndTime = DateTime.Now;
                 jobMetrics.Duration = stopwatch.Elapsed;
-                
-                _jobStatuses[job.Id] = new JobStatus 
-                { 
-                    Status = "Cancelled", 
-                    Message = "İşlem iptal edildi", 
-                    UpdatedAt = DateTime.Now 
+
+                _jobStatuses[job.Id] = new JobStatus
+                {
+                    Status = "Cancelled",
+                    Message = "İşlem iptal edildi",
+                    UpdatedAt = DateTime.Now
                 };
-                
+
                 _logger.LogWarning("⚠️ Job iptal edildi: {JobId} - Süre: {Duration}ms", job.Id, stopwatch.ElapsedMilliseconds);
                 throw;
             }
@@ -267,19 +266,19 @@ namespace HakemYorumlari.Services
                 jobMetrics.Duration = stopwatch.Elapsed;
                 jobMetrics.ErrorMessage = ex.Message;
                 jobMetrics.ErrorStackTrace = ex.StackTrace;
-                
+
                 _failedJobs++;
                 _totalJobsProcessed++;
-                
+
                 // Detailed error logging
                 _logger.LogError(ex, "❌ Job başarısız: {JobId} - {JobType} - Hata: {ErrorMessage} - Süre: {Duration}ms - Başarısızlık Oranı: {FailureRate}%",
                     job.Id, job.Type.ToString(), ex.Message, stopwatch.ElapsedMilliseconds,
                     _totalJobsProcessed > 0 ? (_failedJobs * 100 / _totalJobsProcessed) : 0);
-                
-                _jobStatuses[job.Id] = new JobStatus 
-                { 
-                    Status = "Failed", 
-                    Message = $"Hata: {ex.Message}", 
+
+                _jobStatuses[job.Id] = new JobStatus
+                {
+                    Status = "Failed",
+                    Message = $"Hata: {ex.Message}",
                     UpdatedAt = DateTime.Now,
                     ErrorDetails = new ErrorDetails
                     {
@@ -292,7 +291,7 @@ namespace HakemYorumlari.Services
             finally
             {
                 _jobMetrics[job.Id] = jobMetrics;
-                
+
                 // Eski metrikleri temizle (24 saatten eski)
                 var cutoffTime = DateTime.Now.AddHours(-24);
                 var keysToRemove = _jobMetrics.Where(kvp => kvp.Value.StartTime < cutoffTime).Select(kvp => kvp.Key).ToList();
@@ -305,163 +304,110 @@ namespace HakemYorumlari.Services
 
         public List<JobStatus> GetAllActiveJobs()
         {
-            try
-            {
-                // ConcurrentDictionary için doğru kullanım
-                return _jobStatuses.Values.Where(j => j.Status == "Running" || j.Status == "Queued")
-                                          .OrderByDescending(j => j.UpdatedAt)
-                                          .ToList();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "GetAllActiveJobs hatası");
-                return new List<JobStatus>();
-            }
+            return _jobStatuses.Values.Where(j => j.Status == "Running" || j.Status == "Queued").ToList();
         }
 
         public bool CancelJob(string jobId)
         {
-            try
+            // Bu kısım, CancellationToken ile daha karmaşık bir yapı gerektirir.
+            // Şimdilik sadece durumu güncelliyoruz.
+            if (_jobStatuses.TryGetValue(jobId, out var status))
             {
-                if (_jobStatuses.ContainsKey(jobId))
-                {
-                    _jobStatuses[jobId] = new JobStatus
-                    {
-                        Status = "Cancelled",
-                        Message = "İşlem kullanıcı tarafından iptal edildi",
-                        Progress = 0,
-                        UpdatedAt = DateTime.Now
-                    };
-                    return true;
-                }
-                return false;
+                status.Status = "Cancelled";
+                return true;
             }
-            catch
-            {
-                return false;
-            }
+            return false;
         }
-        
+
+        //public bool CancelJob(string jobId)
+        //{
+        //    try
+        //    {
+        //        if (_jobStatuses.ContainsKey(jobId))
+        //        {
+        //            _jobStatuses[jobId] = new JobStatus
+        //            {
+        //                Status = "Cancelled",
+        //                Message = "İşlem kullanıcı tarafından iptal edildi",
+        //                Progress = 0,
+        //                UpdatedAt = DateTime.Now
+        //            };
+        //            return true;
+        //        }
+        //        return false;
+        //    }
+        //    catch
+        //    {
+        //        return false;
+        //    }
+        //}
+
         public string StartHaftaTopluYorumTopla(int hafta)
         {
             return EnqueueHaftaYorumToplama(hafta);
         }
 
-            // En iyi performans için: Tek job + Asenkron + Progress tracking
-    private async Task ProcessHaftaYorumToplama(BackgroundJob job, CancellationToken cancellationToken)
-    {
-        int hafta = 0; // Hafta değişkenini metodun başında tanımla
-        
-        try
+        // En iyi performans için: Tek job + Asenkron + Progress tracking
+        private async Task ProcessHaftaYorumToplama(BackgroundJob job, CancellationToken cancellationToken)
         {
-            using var scope = _serviceProvider.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            var yorumToplamaServisi = scope.ServiceProvider.GetRequiredService<HakemYorumuToplamaServisi>();
-            
             var parametersJson = JsonSerializer.Serialize(job.Parameters);
             var parametersDoc = JsonDocument.Parse(parametersJson);
-            hafta = parametersDoc.RootElement.GetProperty("hafta").GetInt32(); // Burada değer ata
-            
-            _logger.LogInformation("Hafta {Hafta} için yorum toplama işlemi başlatılıyor", hafta);
-            
-            // Job durumunu güncelle
-            _jobStatuses[job.Id] = new JobStatus
-            {
-                Status = "Running",
-                Message = $"Hafta {hafta} maçları aranıyor...",
-                UpdatedAt = DateTime.Now
-            };
-            
+            var hafta = parametersDoc.RootElement.GetProperty("hafta").GetInt32();
+
+            _logger.LogInformation("Hafta {Hafta} için yorum toplama işlemi başlatılıyor.", hafta);
+
+            // Her işlem için yeni bir scope oluşturuluyor
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
             var haftaninMaclari = await context.Maclar
-                .Where(m => m.Hafta == hafta && 
-                           m.OtomatikYorumToplamaAktif && 
-                           !m.YorumlarToplandi && 
-                           m.Durum == MacDurumu.Bitti &&
-                           DateTime.Now > m.MacTarihi.AddMinutes(150))
-                .Take(5)
+                .Where(m => m.Hafta == hafta && m.OtomatikYorumToplamaAktif && !m.YorumlarToplandi && m.Durum == MacDurumu.Bitti)
+                .OrderBy(m => m.MacTarihi) // OrderBy eklendi
                 .ToListAsync(cancellationToken);
-            
-            _logger.LogInformation("Hafta {Hafta} için {MacSayisi} maç bulundu", hafta, haftaninMaclari.Count);
-            
+
             if (!haftaninMaclari.Any())
             {
-                _jobStatuses[job.Id] = new JobStatus
-                {
-                    Status = "Completed",
-                    Message = $"Hafta {hafta} için işlenecek maç bulunamadı. Kriterler: Otomatik toplama aktif, yorumlar toplanmamış, maç bitmiş, 150dk+ geçmiş, 3 günden eski değil.",
-                    UpdatedAt = DateTime.Now
-                };
+                _logger.LogWarning("Hafta {Hafta} için işlenecek maç bulunamadı.", hafta);
+                _jobStatuses[job.Id].Message = $"Hafta {hafta} için işlenecek maç bulunamadı.";
                 return;
             }
-            
-            // Concurrent processing with progress tracking
-            var semaphore = new SemaphoreSlim(3, 3); // Max 3 concurrent
+
             var completedCount = 0;
             var totalCount = haftaninMaclari.Count;
-            
-            var tasks = haftaninMaclari.Select(async mac =>
+
+            // Maçları sırayla işle (paralel işlem yerine)
+            foreach (var mac in haftaninMaclari)
             {
-                await semaphore.WaitAsync(cancellationToken);
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogWarning("İşlem iptal edildi.");
+                    break;
+                }
+
+                // Her maç için yeni bir scope ve servis örneği oluştur
+                using var macScope = _serviceProvider.CreateScope();
+                var yorumToplamaServisi = macScope.ServiceProvider.GetRequiredService<HakemYorumuToplamaServisi>();
+
                 try
                 {
-                    var result = await yorumToplamaServisi.MacIcinYorumTopla(mac.Id);
-                    
-                    var completed = Interlocked.Increment(ref completedCount);
-                    
-                    // Progress update
-                    _jobStatuses[job.Id] = new JobStatus
-                    {
-                        Status = "Running",
-                        Message = $"İşlenen: {completed}/{totalCount} - Son: {mac.EvSahibi} vs {mac.Deplasman}",
-                        Progress = (completed * 100) / totalCount,
-                        UpdatedAt = DateTime.Now
-                    };
-                    
-                    return new { Mac = mac, Success = result };
+                    await yorumToplamaServisi.MacIcinYorumTopla(mac.Id);
                 }
-                finally
+                catch (Exception ex)
                 {
-                    semaphore.Release();
+                    _logger.LogError(ex, "{EvSahibi} vs {Deplasman} maçı için yorum toplama başarısız.", mac.EvSahibi, mac.Deplasman);
                 }
-            });
-            
-            var results = await Task.WhenAll(tasks);
-            var successCount = results.Count(r => r.Success);
-            
-            // Final status update ekle - Bu eksikti!
-            _jobStatuses[job.Id] = new JobStatus
-            {
-                Status = "Completed",
-                Message = $"Hafta {hafta} tamamlandı: {successCount}/{totalCount} maç başarıyla işlendi",
-                Progress = 100,
-                UpdatedAt = DateTime.Now
-            };
-            
-            _logger.LogInformation("Hafta {Hafta} tamamlandı: {Success}/{Total} başarılı", 
-                hafta, successCount, totalCount);
+
+                completedCount++;
+                _jobStatuses[job.Id].Progress = (completedCount * 100) / totalCount;
+                _jobStatuses[job.Id].Message = $"İşlenen: {completedCount}/{totalCount} - {mac.EvSahibi} vs {mac.Deplasman}";
+            }
+
+            _logger.LogInformation("Hafta {Hafta} yorum toplama işlemi tamamlandı.", hafta);
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "ProcessHaftaYorumToplama genel hatası: {Hata}", ex.Message);
-            
-            // Artık hafta değişkeni erişilebilir
-            _jobStatuses[job.Id] = new JobStatus
-            {
-                Status = "Failed",
-                Message = $"Hafta {hafta} işlemi başarısız: {ex.Message}",
-                UpdatedAt = DateTime.Now,
-                ErrorDetails = new ErrorDetails
-                {
-                    Message = ex.Message,
-                    StackTrace = ex.StackTrace
-                }
-            };
-            
-            throw;
-        }
+
+
     }
-    }
-    
+
 
     public class BackgroundJob
     {
@@ -525,5 +471,5 @@ namespace HakemYorumlari.Services
         public JobMetrics? SlowestJob { get; set; }
         public JobMetrics? FastestJob { get; set; }
     }
-    
+
 }
