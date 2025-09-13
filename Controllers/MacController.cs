@@ -212,7 +212,7 @@ namespace HakemYorumlari.Controllers
                 return 1;
                 
             var gecenGunler = (tarih - sezonBaslangic).Days;
-            var hafta = (int)Math.Ceiling(gecenGunler / 7.0);
+            var hafta = (gecenGunler / 7) + 1; // Math.Ceiling yerine basit bölme + 1
             
             return Math.Min(Math.Max(hafta, 1), 38); // 1-38 hafta arası
         }

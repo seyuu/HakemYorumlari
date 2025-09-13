@@ -175,8 +175,7 @@ namespace HakemYorumlari.Services
                                m.MacTarihi.AddMinutes(150) <= simdi) // Maç bitiminden 2.5 saat sonra
                     .GroupBy(m => m.Hafta)
                     .Select(g => new { Hafta = g.Key, MacSayisi = g.Count() })
-                    .Where(g => g.MacSayisi >= 3) // En az 3 maç olan haftalar
-                    .ToListAsync();
+                    .ToListAsync(); // En az 3 maç kriterini kaldırdım
 
                 foreach (var hafta in yorumToplanacakMaclar)
                 {
