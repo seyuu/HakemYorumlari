@@ -45,16 +45,16 @@ function updateJobList(jobs) {
     let index = 0;
     // Dictionary olarak işle (Object.entries kullan)
     Object.entries(jobs).forEach(([jobId, status]) => {
-        // Status kontrolü - GENİŞLETİLMİŞ MAPPING
         const jobStatus = status.Status || 'Unknown';
         const jobMessage = status.Message || 'Mesaj yok';
         const jobProgress = status.Progress || 0;
         
         // Progress text düzeltmesi
+        // ✅ Progress bar'ı düzelt
         const progressText = jobProgress > 0 ? `${jobProgress}%` : 
-                        (jobStatus === 'Running' ? 'Başlatılıyor...' : 
-                         jobStatus === 'Queued' ? 'Kuyrukta bekliyor...' : 
-                         jobStatus === 'Completed' ? '100%' : '0%');
+                        (jobStatus === 'Running' ? 'Çalışıyor...' : 
+                         jobStatus === 'Queued' ? 'Kuyrukta...' : 
+                         jobStatus === 'Completed' ? 'Tamamlandı' : 'Bilinmiyor');
         
         // Tarih kontrolü ve formatı - İYİLEŞTİRİLMİŞ
         let formattedDate = 'Bilinmiyor';

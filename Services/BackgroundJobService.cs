@@ -92,19 +92,6 @@ namespace HakemYorumlari.Services
                 var result = new Dictionary<string, JobStatus>(_jobStatuses);
                 _logger.LogInformation($"GetAllJobStatuses çağrıldı - {result.Count} job durumu döndürülüyor");
 
-                // DEBUG: Eğer boşsa otomatik job başlat
-                if (result.Count == 0)
-                {
-                    _logger.LogWarning("Job dictionary boş! Otomatik job başlatılıyor...");
-
-                    // Test için hafta 1 job'ı başlat
-                    var testJobId = EnqueueHaftaYorumToplama(1);
-                    _logger.LogInformation($"Test job başlatıldı: {testJobId}");
-
-                    // Güncellenmiş dictionary'yi döndür
-                    result = new Dictionary<string, JobStatus>(_jobStatuses);
-                }
-
                 return result;
             }
             catch (Exception ex)
@@ -309,12 +296,16 @@ namespace HakemYorumlari.Services
 
         public bool CancelJob(string jobId)
         {
-            // Bu kısım, CancellationToken ile daha karmaşık bir yapı gerektirir.
-            // Şimdilik sadece durumu güncelliyoruz.
             if (_jobStatuses.TryGetValue(jobId, out var status))
             {
-                status.Status = "Cancelled";
-                return true;
+                // ✅ Sadece aktif jobları iptal et
+                if (status.Status == "Running" || status.Status == "Queued")
+                {
+                    status.Status = "Cancelled";
+                    status.Message = "İşlem kullanıcı tarafından iptal edildi";
+                    status.UpdatedAt = DateTime.Now;
+                    return true;
+                }
             }
             return false;
         }

@@ -41,12 +41,13 @@ try
         .PersistKeysToGoogleCloudStorage(bucketName, "keys.xml")
         .SetApplicationName("Hakemyorumlari");
 
-    builder.Logging.Services.BuildServiceProvider().GetService<ILogger<Program>>()?
-        .LogInformation("Data Protection, Google Cloud Storage'a başarıyla bağlandı. Bucket: {BucketName}", bucketName);
+    builder.Logging.Services.BuildServiceProvider().GetService<ILogger<Program>>()?.
+        LogInformation("Data Protection, Google Cloud Storage'a başarıyla bağlandı. Bucket: {BucketName}", bucketName);
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"[KRİTİK HATA] Data Protection yapılandırılamadı. Hata: {ex.Message}");
+    var logger = builder.Services.BuildServiceProvider().GetService<ILogger<Program>>();
+    logger?.LogCritical("Data Protection yapılandırılamadı. Hata: {ErrorMessage}", ex.Message);
     throw new InvalidOperationException("Data Protection yapılandırması başarısız oldu.", ex);
 }
 // --- DÜZELTİLEN BÖLÜM SONU ---

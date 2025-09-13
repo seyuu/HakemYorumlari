@@ -151,15 +151,6 @@ namespace HakemYorumlari.Services
             
             if (parts.Length == 2) return (parts[0], parts[1]);
             
-            // Eğer " - " ile bölünemezse, boşluklarla böl ve son 2'yi al
-            var spaceParts = s.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (spaceParts.Length >= 2)
-            {
-                var home = string.Join(" ", spaceParts.Take(spaceParts.Length - 1));
-                var away = spaceParts.Last();
-                return (home, away);
-            }
-            
             return (null, null);
         }
 
@@ -481,26 +472,31 @@ namespace HakemYorumlari.Services
             // Yaygın takım kısaltmaları
             var teamMappings = new Dictionary<string, string[]>
             {
-                { "galatasaray", new[] { "gs", "gala", "galata" } },
-                { "fenerbahce", new[] { "fb", "fener" } },
-                { "besiktas", new[] { "bjk", "kartal" } },
-                { "trabzonspor", new[] { "ts", "trabzon" } },
-                { "basaksehir", new[] { "başakşehir", "ibfk" } },
-                { "antalyaspor", new[] { "antalya" } },
+                { "galatasaray", new[] { "gs", "gala", "galata", "cimbom", "sarı-kırmızılılar" } },
+                { "fenerbahce", new[] { "fb", "fener", "sarı-lacivertliler", "kanaryalar" } },
+                { "besiktas", new[] { "bjk", "kartal", "siyah-beyazlılar", "kartallar" } },
+                { "trabzonspor", new[] { "ts", "trabzon", "bordo-mavililer", "karadeniz fırtınası" } },
+                { "basaksehir", new[] { "başakşehir", "ibfk", "turuncu-lacivertliler" } },
+                { "antalyaspor", new[] { "antalya", "akrepler" } },
                 { "kayserispor", new[] { "kayseri" } },
-                { "sivasspor", new[] { "sivas" } },
-                { "konyaspor", new[] { "konya" } },
-                { "alanyaspor", new[] { "alanya" } },
-                { "gaziantep", new[] { "gaziantepspor" } },
+                { "sivasspor", new[] { "sivas", "yiğidolar" } },
+                { "konyaspor", new[] { "konya", "kartal" } },
+                { "alanyaspor", new[] { "alanya", "portakal yeşilliler" } },
+                { "gaziantep", new[] { "gaziantepspor", "gaziantep fk" } },
                 { "hatayspor", new[] { "hatay" } },
                 { "kasimpasa", new[] { "kasımpaşa" } },
-                { "rizespor", new[] { "rize" } },
-                { "adana demirspor", new[] { "adana", "demirspor" } }
+                { "rizespor", new[] { "rize", "çaykur rizespor" } },
+                { "adana demirspor", new[] { "adana", "demirspor", "mavi şimşekler" } },
+                { "fatih karagümrük", new[] { "karagümrük", "fatih", "fk" } },
+                { "istanbulspor", new[] { "istanbul", "sarı-siyahlılar" } },
+                { "samsunspor", new[] { "samsun" } },
+                { "pendikspor", new[] { "pendik" } },
+                { "eyüpspor", new[] { "eyüp" } }
             };
             
             foreach (var mapping in teamMappings)
             {
-                if (teamName.Contains(mapping.Key))
+                if (teamName.ToLower().Contains(mapping.Key))
                 {
                     aliases.AddRange(mapping.Value);
                     break;
@@ -904,7 +900,7 @@ public async Task<BulunanYorum?> VideoLinkindenTekYorum(string youtubeUrl, strin
                     pozisyonlar.Add(new BulunanYorum
                 {
                     YorumcuAdi = "Transcript Tespit",
-                    Yorum = $"[{segment.Offset.Minutes:D2}:{segment.Offset.Seconds:D2}] {pozisyonTuru}: {segment.Text}",
+                    Yorum = CreateDetailedPositionDescription(segment, pozisyonTuru, macBilgisi, youtubeUrl),
                     DogruKarar = false,
                     Kanal = "YouTube Transcript",
                     KaynakLink = youtubeUrl,
@@ -1340,11 +1336,26 @@ private async Task<List<(TimeSpan Offset, string Text)>?> GetTranscriptViaTimedT
                 var (home, away) = ParseTeams(macBilgisi);
                 var normalizedText = NormalizeTr(metin);
                 
-                // Takım adlarından en az biri geçiyorsa devam et
-                bool takimIlgiliMi = (!string.IsNullOrEmpty(home) && normalizedText.Contains(NormalizeTr(home))) || 
-                                    (!string.IsNullOrEmpty(away) && normalizedText.Contains(NormalizeTr(away)));
+                // Takım adları ve aliasları kontrol et
+                bool takimIlgiliMi = false;
+                if (!string.IsNullOrEmpty(home))
+                {
+                    var homeAliases = GetTeamAliases(home);
+                    takimIlgiliMi = homeAliases.Any(alias => normalizedText.Contains(alias));
+                }
+                if (!takimIlgiliMi && !string.IsNullOrEmpty(away))
+                {
+                    var awayAliases = GetTeamAliases(away);
+                    takimIlgiliMi = awayAliases.Any(alias => normalizedText.Contains(alias));
+                }
                 
-                if (!takimIlgiliMi) return null; // Takım adı geçmiyorsa pozisyon sayma
+                // Eğer takım adı geçmiyorsa ama pozisyon kelimesi varsa yine de kabul et
+                if (!takimIlgiliMi)
+                {
+                    var pozisyonKelimeleri = new[] { "penaltı", "kırmızı kart", "sarı kart", "ofsayt", "var", "faul" };
+                    if (!pozisyonKelimeleri.Any(k => normalizedText.Contains(k)))
+                        return null;
+                }
             }
             
             if (metin.Contains("penaltı") || metin.Contains("penalti") || metin.Contains("penalty"))
@@ -1493,6 +1504,57 @@ private async Task<List<(TimeSpan Offset, string Text)>?> GetTranscriptViaTimedT
             }
             
             return segments;
+        }
+        
+        /// <summary>
+        /// AI servisinden gelen transcript yanıtını parse eder
+        /// </summary>
+        private async Task<List<(TimeSpan Offset, string Text)>?> ParseAITranscriptResponse(string response)
+        {
+            try
+            {
+                // Yanıt JSON formatında mı kontrol et
+                if (response.StartsWith("{") || response.StartsWith("["))
+                {
+                    // Mevcut ParseAITranscript metodunu kullan
+                    var segments = ParseAITranscript(response);
+                    if (segments.Count > 0)
+                    {
+                        return segments;
+                    }
+                }
+                
+                // Yanıt URL içeriyor olabilir
+                var urlMatch = Regex.Match(response, @"https?://[^\s""']+");
+                if (urlMatch.Success)
+                {
+                    var url = urlMatch.Value;
+                    _logger.LogInformation($"AI yanıtında URL bulundu: {url}");
+                    
+                    try
+                    {
+                        // URL'den içeriği çek
+                        var content = await _httpClient.GetStringAsync(url);
+                        if (!string.IsNullOrEmpty(content))
+                        {
+                            // İçeriği parse et
+                            return ParseAITranscript(content);
+                        }
+                    }
+                    catch (Exception urlEx)
+                    {
+                        _logger.LogError(urlEx, $"AI yanıtındaki URL'den içerik çekme hatası: {url}");
+                    }
+                }
+                
+                // Direkt metin olarak işle
+                return ParseAITranscript(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "AI transcript yanıtı parse hatası");
+                return null;
+            }
         }
         
         public void Dispose()
@@ -2040,6 +2102,24 @@ private async Task<string?> FetchTranscriptFromUrl(string transcriptUrl)
         _logger.LogError(ex, $"Transcript URL fetch hatası: {transcriptUrl} - {ex.Message}");
         return null;
     }
+}
+
+/// <summary>
+/// Detaylı pozisyon açıklaması oluşturur
+/// </summary>
+private string CreateDetailedPositionDescription((TimeSpan Offset, string Text) segment, string pozisyonTuru, string macBilgisi, string youtubeUrl)
+{
+    var (home, away) = ParseTeams(macBilgisi);
+    var matchInfo = !string.IsNullOrEmpty(home) && !string.IsNullOrEmpty(away) 
+        ? $"{home} vs {away}" 
+        : macBilgisi;
+    
+    var timeStamp = $"{segment.Offset.Minutes:D2}:{segment.Offset.Seconds:D2}";
+    
+    // Video başlığından kanal bilgisi çıkar
+    var videoId = ParseVideoIdFromUrl(youtubeUrl);
+    
+    return $"[{timeStamp}] {matchInfo} maçında {pozisyonTuru}: {segment.Text.Substring(0, Math.Min(segment.Text.Length, 100))}...";
 }
     }
 }

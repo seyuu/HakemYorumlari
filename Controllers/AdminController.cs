@@ -722,27 +722,6 @@ namespace HakemYorumlari.Controllers
             return RedirectToAction("Index");
         }
 
-        // YouTube Debug Endpoint
-        public IActionResult YouTubeDebug()
-        {
-            var debugInfo = new
-            {
-                CurrentDirectory = Directory.GetCurrentDirectory(),
-                GoogleApplicationCredentials = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS"),
-                JsonFiles = Directory.GetFiles(Directory.GetCurrentDirectory(), "*.json").ToList(),
-                YouTubeServiceStatus = _youtubeService != null ? "Başlatıldı" : "NULL",
-                EnvironmentVariables = new
-                {
-                    GOOGLE_APPLICATION_CREDENTIALS = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS"),
-                    ASPNETCORE_ENVIRONMENT = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
-                    HOME = Environment.GetEnvironmentVariable("HOME"),
-                    USER = Environment.GetEnvironmentVariable("USER")
-                }
-            };
-            
-            return Json(debugInfo);
-        }
-
         // Job durumu kontrol endpoint'leri
         [HttpGet]
         public IActionResult JobDurumu()
