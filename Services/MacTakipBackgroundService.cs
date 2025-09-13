@@ -27,7 +27,7 @@ namespace HakemYorumlari.Services
             {
                 try
                 {
-                    await MacDurumlariniGuncelle();
+                    await MacDurumlariniGuncelle(stoppingToken);
                     await YorumToplanacakMaclariKontrolEt(); // Artık job queue kullanıyor
                     await HaftalikFikstürKontrolEt();
                     
@@ -46,12 +46,13 @@ namespace HakemYorumlari.Services
             }
         }
 
-        private async Task MacDurumlariniGuncelle()
+        private async Task MacDurumlariniGuncelle(CancellationToken stoppingToken)
         {
             try
             {
                 using var scope = _serviceProvider.CreateScope();
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var skorServisi = scope.ServiceProvider.GetRequiredService<SkorCekmeServisi>();
 
                 var simdi = DateTime.Now;
                 
@@ -60,7 +61,7 @@ namespace HakemYorumlari.Services
                     .Where(m => m.Durum == MacDurumu.Bekliyor &&
                                m.MacTarihi <= simdi &&
                                m.MacTarihi.AddMinutes(120) > simdi) // 2 saat içinde bitmemiş
-                    .ToListAsync();
+                    .ToListAsync(stoppingToken);
 
                 foreach (var mac in baslayacakMaclar)
                 {
@@ -72,48 +73,26 @@ namespace HakemYorumlari.Services
                 var bitecekMaclar = await context.Maclar
                     .Where(m => m.Durum == MacDurumu.Oynaniyor &&
                                m.MacTarihi.AddMinutes(120) <= simdi)
-                    .ToListAsync();
+                    .ToListAsync(stoppingToken);
 
                 foreach (var mac in bitecekMaclar)
                 {
                     mac.Durum = MacDurumu.Bitti;
                     
-                    // Gerçek skor çekmeye çalış
                     if (string.IsNullOrEmpty(mac.Skor) || mac.Skor == "-")
                     {
-                        try
-                        {
-                            var skorServisi = scope.ServiceProvider.GetRequiredService<SkorCekmeServisi>();
-                            
-                            // TFF'den öncelikli olarak skor çekmeye çalış
-                            var gercekSkor = await skorServisi.MacSkoruCek(mac.EvSahibi, mac.Deplasman, mac.MacTarihi);
-                            
-                            if (!string.IsNullOrEmpty(gercekSkor))
-                            {
-                                mac.Skor = gercekSkor;
-                                _logger.LogInformation($"Gerçek skor bulundu: {mac.EvSahibi} vs {mac.Deplasman} - {gercekSkor}");
-                            }
-                            else
-                            {
-                                _logger.LogWarning($"Gerçek skor bulunamadı: {mac.EvSahibi} vs {mac.Deplasman} - Skor boş bırakıldı");
-                                // Skor bulunamadıysa "-" olarak işaretle
-                                mac.Skor = "-";
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, $"Skor çekme hatası: {mac.EvSahibi} vs {mac.Deplasman} - Skor boş bırakıldı");
-                            mac.Skor = "-";
-                        }
+                        var gercekSkor = await skorServisi.MacSkoruCek(mac.EvSahibi, mac.Deplasman, mac.MacTarihi);
+                        mac.Skor = string.IsNullOrEmpty(gercekSkor) ? "-" : gercekSkor;
+                        _logger.LogInformation("Skor çekildi: {EvSahibi} vs {Deplasman} -> {Skor}", mac.EvSahibi, mac.Deplasman, mac.Skor);
                     }
-                    
-                    _logger.LogInformation($"Maç durumu güncellendi - Bitti: {mac.EvSahibi} vs {mac.Deplasman} ({mac.Skor ?? "Skor yok"})");
+
+                    _logger.LogInformation("Maç durumu güncellendi -> Bitti: {EvSahibi} vs {Deplasman}", mac.EvSahibi, mac.Deplasman);
                 }
 
                 if (baslayacakMaclar.Any() || bitecekMaclar.Any())
                 {
-                    await context.SaveChangesAsync();
-                    _logger.LogInformation($"Toplam {baslayacakMaclar.Count + bitecekMaclar.Count} maç durumu güncellendi");
+                    await context.SaveChangesAsync(stoppingToken);
+                    _logger.LogInformation("Toplam {Count} maç durumu veritabanına kaydedildi.", baslayacakMaclar.Count + bitecekMaclar.Count);
                 }
             }
             catch (Exception ex)
@@ -136,8 +115,8 @@ namespace HakemYorumlari.Services
                     .Where(m => m.OtomatikYorumToplamaAktif && 
                                !m.YorumlarToplandi &&
                                m.Durum == MacDurumu.Bitti &&
-                               m.MacTarihi.AddMinutes(150) <= simdi && // Maç bitiminden 2.5 saat sonra
-                               m.MacTarihi >= simdi.AddDays(-3)) // Son 3 gün içindeki maçlar
+                               m.MacTarihi.AddMinutes(150) <= simdi // Maç bitiminden 2.5 saat sonra
+                               )  
                     .GroupBy(m => m.Hafta)
                     .Select(g => new { Hafta = g.Key, MacSayisi = g.Count() })
                     .Where(g => g.MacSayisi >= 2) // En az 2 maç olan haftalar
