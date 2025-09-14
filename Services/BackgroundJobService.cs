@@ -117,10 +117,6 @@ namespace HakemYorumlari.Services
         {
             _logger.LogInformation("BackgroundJobService başlatıldı - Otomatik job kontrolü aktif");
 
-            // İlk başlangıçta test job'ı ekle
-            var initialJobId = EnqueueHaftaYorumToplama(1);
-            _logger.LogInformation($"İlk test job başlatıldı: {initialJobId}");
-
             while (!stoppingToken.IsCancellationRequested)
             {
                 try

@@ -623,13 +623,13 @@ namespace HakemYorumlari.Controllers
         private int GetCurrentWeek(DateTime tarih)
         {
             // TFF'deki hafta sistemi:
-            // 08.08.2025 = 1. hafta
-            // 15.08.2025 = 2. hafta
-            // 22.08.2025 = 3. hafta
+            // 08.08.2024 = 1. hafta (2024-2025 sezonu)
+            // 15.08.2024 = 2. hafta
+            // 22.08.2024 = 3. hafta
             // vs.
             
-            // Süper Lig sezon başlangıcı (8 Ağustos 2025)
-            var sezonBaslangic = new DateTime(2025, 8, 8);
+            // Süper Lig sezon başlangıcı (8 Ağustos 2024)
+            var sezonBaslangic = new DateTime(2024, 8, 8);
             
             if (tarih < sezonBaslangic)
                 return 1;
@@ -828,7 +828,6 @@ namespace HakemYorumlari.Controllers
         
         // YENİ: Eksik endpoint ekleniyor
         [HttpPost]
-        [ValidateAntiForgeryToken]
         public IActionResult StartHaftaYorumToplama()
         {
             try
