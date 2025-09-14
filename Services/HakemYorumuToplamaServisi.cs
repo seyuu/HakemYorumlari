@@ -100,6 +100,20 @@ namespace HakemYorumlari.Services
         {
             var mac = await _context.Maclar.FirstOrDefaultAsync(m => m.Id == macId);
             
+            // Skor kontrolünü sadece maç durumu için yap
+            if (mac == null)
+            {
+                _logger.LogWarning($"Maç bulunamadı: ID {macId}");
+                return false;
+            }
+            
+            // Maç durumu kontrolü (skor kontrolü yerine)
+            if (mac.Durum != MacDurumu.Bitti)
+            {
+                _logger.LogInformation("Maç henüz oynanmadı, yorum toplama atlanıyor: {EvSahibi} vs {Deplasman}", mac.EvSahibi, mac.Deplasman);
+                return false;
+            }
+            
             // Skor kontrolü ekle
             if (mac?.Skor == "-" || string.IsNullOrEmpty(mac?.Skor))
             {

@@ -24,70 +24,73 @@
 </div>
 
 <script>
+let lastJobCount = 0;
+
 function refreshJobs() {
-    fetch('/Admin/Api/JobStatus')  // ✅ Doğru URL
+    fetch('/Admin/Api/JobStatus')
         .then(response => response.json())
         .then(data => {
             updateJobList(data);
+            
+            // Job tamamlandığında ses çal
+            const currentJobCount = Object.keys(data || {}).length;
+            if (currentJobCount < lastJobCount) {
+                // Job tamamlandı, ses çal
+                playNotificationSound();
+            }
+            lastJobCount = currentJobCount;
         });
 }
 
+function playNotificationSound() {
+    // Basit beep sesi
+    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
+    audio.play().catch(() => {});
+}
 function updateJobList(jobs) {
     const jobList = document.getElementById('jobList');
     
-    // jobs null veya undefined kontrolü
     if (!jobs || Object.keys(jobs).length === 0) {
-        jobList.innerHTML = '<p class="text-muted">Şu anda aktif işlem yok.</p>';
+        jobList.innerHTML = '<div class="alert alert-info"><i class="fas fa-info-circle"></i> Şu anda aktif işlem yok.</div>';
         return;
     }
     
     let html = '';
     let index = 0;
-    // Dictionary olarak işle (Object.entries kullan)
     Object.entries(jobs).forEach(([jobId, status]) => {
         const jobStatus = status.Status || 'Unknown';
-        const jobMessage = status.Message || 'Mesaj yok';
+        const jobMessage = status.Message || 'İşlem başlatıldı...';
         const jobProgress = status.Progress || 0;
         
+        // Daha detaylı durum mesajları
+        const detailedMessage = getDetailedMessage(jobStatus, jobMessage, jobProgress);
+        
         // Progress text düzeltmesi
-        // ✅ Progress bar'ı düzelt
         const progressText = jobProgress > 0 ? `${jobProgress}%` : 
-                        (jobStatus === 'Running' ? 'Çalışıyor...' : 
-                         jobStatus === 'Queued' ? 'Kuyrukta...' : 
+                        (jobStatus === 'Running' ? 'İşleniyor...' : 
+                         jobStatus === 'Queued' ? 'Sırada bekliyor...' : 
                          jobStatus === 'Completed' ? 'Tamamlandı' : 'Bilinmiyor');
         
-        // Tarih kontrolü ve formatı - İYİLEŞTİRİLMİŞ
+        // Tarih formatı
         let formattedDate = 'Bilinmiyor';
         if (status.UpdatedAt) {
             try {
-                // ISO string veya .NET tarih formatını handle et
-                let dateStr = status.UpdatedAt;
-                if (typeof dateStr === 'string' && dateStr.includes('/Date(')) {
-                    // .NET JSON tarih formatı: /Date(1234567890000)/
-                    const timestamp = parseInt(dateStr.match(/\d+/)[0]);
-                    const date = new Date(timestamp);
+                const date = new Date(status.UpdatedAt);
+                if (!isNaN(date.getTime())) {
                     formattedDate = date.toLocaleString('tr-TR');
-                } else {
-                    const date = new Date(dateStr);
-                    if (!isNaN(date.getTime())) {
-                        formattedDate = date.toLocaleString('tr-TR');
-                    }
                 }
             } catch (e) {
-                console.error('Tarih formatı hatası:', e, status.UpdatedAt);
                 formattedDate = 'Tarih hatası';
             }
         }
         
-        // GENİŞLETİLMİŞ STATUS MAPPING
-        const progressClass = (jobStatus === 'Running' || jobStatus === 'Queued') ? 'progress-bar-animated' : '';
+        const progressClass = (jobStatus === 'Running') ? 'progress-bar-animated progress-bar-striped' : '';
         const statusClass = jobStatus === 'Running' ? 'badge-primary' : 
                            jobStatus === 'Completed' ? 'badge-success' : 
                            jobStatus === 'Cancelled' ? 'badge-warning' :
                            jobStatus === 'Queued' ? 'badge-info' :
                            jobStatus === 'Failed' ? 'badge-danger' : 'badge-secondary';
         
-        // STATUS DISPLAY - Türkçe çeviri
         const statusDisplay = jobStatus === 'Running' ? 'Çalışıyor' :
                              jobStatus === 'Completed' ? 'Tamamlandı' :
                              jobStatus === 'Cancelled' ? 'İptal Edildi' :
@@ -95,21 +98,34 @@ function updateJobList(jobs) {
                              jobStatus === 'Failed' ? 'Başarısız' : jobStatus;
         
         html += `
-            <div class="job-item border rounded p-3 mb-3">
+            <div class="job-item border rounded p-3 mb-3 ${jobStatus === 'Running' ? 'border-primary' : ''}">
                 <div class="row">
                     <div class="col-md-8">
-                        <h5>İşlem #${index + 1} (${jobId.substring(0, 8)}...)</h5>
-                        <p class="mb-1">${jobMessage}</p>
-                        <small class="text-muted">Son Güncelleme: ${formattedDate}</small>
+                        <h5><i class="fas fa-cog ${jobStatus === 'Running' ? 'fa-spin' : ''}"></i> İşlem #${index + 1}</h5>
+                        <p class="mb-1"><strong>Durum:</strong> ${detailedMessage}</p>
+                        <p class="mb-1"><strong>Job ID:</strong> <code>${jobId.substring(0, 12)}...</code></p>
+                        <small class="text-muted"><i class="fas fa-clock"></i> Son Güncelleme: ${formattedDate}</small>
                     </div>
                     <div class="col-md-4 text-right">
                         <span class="badge ${statusClass} mb-2">${statusDisplay}</span>
-                        <div class="progress mb-2">
-                            <div class="progress-bar ${progressClass}" style="width: ${jobProgress > 0 ? jobProgress : (jobStatus === 'Completed' ? 100 : 0)}%">
+                        <div class="progress mb-2" style="height: 25px;">
+                            <div class="progress-bar ${progressClass}" style="width: ${jobProgress > 0 ? jobProgress : (jobStatus === 'Completed' ? 100 : (jobStatus === 'Running' ? 15 : 0))}%">
                                 ${progressText}
                             </div>
                         </div>
-                        ${(jobStatus === 'Running' || jobStatus === 'Queued') ? `<button class="btn btn-sm btn-danger" onclick="cancelJob('${jobId}')">İptal Et</button>` : ''}
+                        ${(jobStatus === 'Running' || jobStatus === 'Queued') ? 
+                            `<button class="btn btn-sm btn-danger" onclick="cancelJob('${jobId}')">
+                                <i class="fas fa-stop"></i> İptal Et
+                            </button>` : 
+                            (jobStatus === 'Completed' ? 
+                                `<button class="btn btn-sm btn-outline-secondary" disabled>
+                                    <i class="fas fa-check"></i> Tamamlandı
+                                </button>` : 
+                                `<button class="btn btn-sm btn-outline-secondary" disabled>
+                                    <i class="fas fa-info"></i> ${statusDisplay}
+                                </button>`
+                            )
+                        }
                     </div>
                 </div>
             </div>
@@ -117,6 +133,25 @@ function updateJobList(jobs) {
         index++;
     });
     jobList.innerHTML = html;
+}
+
+function getDetailedMessage(status, message, progress) {
+    if (status === 'Running') {
+        if (message.includes('İşlenen:')) {
+            return message; // Zaten detaylı
+        }
+        return progress > 0 ? `İşlem devam ediyor... (${progress}%)` : 'İşlem başlatıldı, lütfen bekleyin...';
+    }
+    if (status === 'Queued') {
+        return 'İşlem sıraya alındı, yakında başlayacak...';
+    }
+    if (status === 'Completed') {
+        return 'İşlem başarıyla tamamlandı!';
+    }
+    if (status === 'Failed') {
+        return `İşlem başarısız: ${message}`;
+    }
+    return message || 'Durum bilinmiyor';
 }
 
 function cancelJob(jobId) {
@@ -147,8 +182,8 @@ function cancelJob(jobId) {
     }
 }
 
-// Auto refresh every 5 seconds
-setInterval(refreshJobs, 5000);
+// Auto refresh every 2 seconds (daha sık güncelleme)
+setInterval(refreshJobs, 2000);
 
 // Initial load
 refreshJobs();

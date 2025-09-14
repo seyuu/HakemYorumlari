@@ -21,9 +21,10 @@ namespace HakemYorumlari.Services
         {
             try
             {
-                _logger.LogInformation("Skor çekiliyor: {EvSahibi} vs {Deplasman} - {Tarih}", evSahibi, deplasman, macTarihi.ToString("dd.MM.yyyy"));
+                var hesaplananHafta = GetCurrentWeek(macTarihi);
+                _logger.LogInformation("Skor çekiliyor: {EvSahibi} vs {Deplasman} - Tarih: {Tarih} - Hesaplanan Hafta: {Hafta}", 
+                    evSahibi, deplasman, macTarihi.ToString("dd.MM.yyyy"), hesaplananHafta);
                 
-                // Sadece TFF'den dene
                 var skor = await TFFSkoruCek(evSahibi, deplasman, macTarihi);
                 if (!string.IsNullOrEmpty(skor))
                 {
@@ -124,13 +125,16 @@ namespace HakemYorumlari.Services
         // Hafta hesaplama metodu
         private int GetCurrentWeek(DateTime macTarihi)
         {
-            // Dinamik sezon başlangıcı hesapla
-            var yil = macTarihi.Year;
-            var sezonBaslangici = macTarihi.Month >= 8 ? new DateTime(yil, 8, 1) : new DateTime(yil - 1, 8, 1);
+            // AdminController ile aynı algoritma kullan
+            var sezonBaslangic = new DateTime(2025, 8, 8);
             
-            var fark = macTarihi - sezonBaslangici;
-            var hafta = (int)Math.Ceiling(fark.TotalDays / 7.0);
-            return Math.Max(1, Math.Min(hafta, 34)); // 34 hafta sınırı
+            if (macTarihi < sezonBaslangic)
+                return 1;
+                
+            var gecenGunler = (macTarihi - sezonBaslangic).Days;
+            var hafta = (gecenGunler / 7) + 1;
+            
+            return Math.Min(Math.Max(hafta, 1), 38);
         }
 
         private bool IsTeamMatch(string tffTeamName, string ourTeamName)
@@ -138,53 +142,68 @@ namespace HakemYorumlari.Services
             if (string.IsNullOrEmpty(tffTeamName) || string.IsNullOrEmpty(ourTeamName))
                 return false;
 
-            // TFF'deki isimleri temizle
-            var tffClean = tffTeamName
+            // Daha esnek eşleştirme için takım isimlerini normalize et
+            var tffNormalized = NormalizeTeamName(tffTeamName);
+            var ourNormalized = NormalizeTeamName(ourTeamName);
+            
+            // Tam eşleşme
+            if (tffNormalized == ourNormalized)
+                return true;
+                
+            // Kısmi eşleşme (en az 4 karakter)
+            if (tffNormalized.Length >= 4 && ourNormalized.Length >= 4)
+            {
+                if (tffNormalized.Contains(ourNormalized) || ourNormalized.Contains(tffNormalized))
+                    return true;
+            }
+            
+            // Özel takım eşleştirmeleri
+            var teamMappings = new Dictionary<string, string[]>
+            {
+                { "galatasaray", new[] { "galatasaray", "gs", "gala" } },
+                { "fenerbahce", new[] { "fenerbahçe", "fb", "fener" } },
+                { "besiktas", new[] { "beşiktaş", "bjk" } },
+                { "trabzonspor", new[] { "trabzon", "ts" } }
+                // Diğer takımları da ekleyebilirsiniz
+            };
+            
+            foreach (var mapping in teamMappings)
+            {
+                if (mapping.Value.Any(alias => tffNormalized.Contains(alias) || ourNormalized.Contains(alias)))
+                    return true;
+            }
+            
+            return false;
+        }
+
+        private string NormalizeTeamName(string teamName)
+        {
+            return teamName
                 .Replace("A.Ş.", "")
-                .Replace("A.Ş", "")
-                .Replace("FUTBOL KULÜBÜ", "")
                 .Replace("FK", "")
-                .Replace("FUTBOL", "")
+                .Replace("FUTBOL KULÜBÜ", "")
                 .Replace("KULÜBÜ", "")
-                .Replace("KULUBU", "")
-                .Replace("MISIRLI.COM.TR", "")
+                .Replace("SPOR", "")
+                .Replace("İSTANBUL", "")
+                .Replace("ADANA", "")
+                .Replace("DEMİRSPOR", "")
+                .Replace("ÇAYKUR", "")
+                .Replace("TÜMOSAN", "")
+                .Replace("RAMS", "")
                 .Replace("İKAS", "")
                 .Replace("CORENDON", "")
                 .Replace("GÖZTEPE", "")
                 .Replace("HESAP.COM", "")
                 .Replace("ZECORNER", "")
-                .Replace("TÜMOSAN", "")
-                .Replace("RAMS", "")
-                .Replace("ÇAYKUR", "")
-                .Replace("ADANA", "")
-                .Replace("DEMİRSPOR", "")
-                .Replace("İSTANBUL", "")
+                .Replace("MISIRLI.COM.TR", "")
                 .Trim()
-                .ToLower(); // Büyük/küçük harf duyarsız yap
-            
-            var ourClean = ourTeamName
-                .Replace("A.Ş.", "")
-                .Replace("FK", "")
-                .Replace("İSTANBUL", "")
-                .Trim()
-                .ToLower(); // Büyük/küçük harf duyarsız yap
-
-            // Debug için detaylı log
-            _logger.LogInformation("=== TAKIM EŞLEŞTİRME DEBUG ===");
-            _logger.LogInformation("Orijinal TFF: '{TffTeamName}'", tffTeamName);
-            _logger.LogInformation("Orijinal Bizim: '{OurTeamName}'", ourTeamName);
-            _logger.LogInformation("Temizlenmiş TFF: '{TffClean}'", tffClean);
-            _logger.LogInformation("Temizlenmiş Bizim: '{OurClean}'", ourClean);
-
-            // Eşleştirme kontrolü - artık büyük/küçük harf duyarsız
-            if (tffClean.Contains(ourClean) || ourClean.Contains(tffClean))
-            {
-                _logger.LogInformation("✅ TAKIM EŞLEŞMESİ BULUNDU!");
-                return true;
-            }
-
-            _logger.LogInformation("❌ TAKIM EŞLEŞMESİ BULUNAMADI!");
-            return false;
+                .ToLowerInvariant()
+                .Replace("ı", "i")
+                .Replace("ğ", "g")
+                .Replace("ü", "u")
+                .Replace("ş", "s")
+                .Replace("ö", "o")
+                .Replace("ç", "c");
         }
 
         private bool IsValidScore(string skor1, string skor2)
