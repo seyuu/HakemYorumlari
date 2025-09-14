@@ -89,8 +89,20 @@ namespace HakemYorumlari.Services
         {
             try
             {
-                var result = new Dictionary<string, JobStatus>(_jobStatuses);
-                _logger.LogInformation($"GetAllJobStatuses çağrıldı - {result.Count} job durumu döndürülüyor");
+                var result = new Dictionary<string, JobStatus>();
+                
+                // Son 24 saatteki job'ları al (eski job'ları temizle)
+                var cutoffTime = DateTime.Now.AddHours(-24);
+                
+                foreach (var kvp in _jobStatuses)
+                {
+                    if (kvp.Value.UpdatedAt > cutoffTime)
+                    {
+                        result[kvp.Key] = kvp.Value;
+                    }
+                }
+                
+                _logger.LogInformation($"GetAllJobStatuses çağrıldı - {result.Count} aktif job durumu döndürülüyor");
 
                 return result;
             }

@@ -57,7 +57,15 @@ function updateJobList(jobs) {
     
     let html = '';
     let index = 0;
-    Object.entries(jobs).forEach(([jobId, status]) => {
+    
+    // Job'ları tarihe göre sırala (en yeni önce)
+    const sortedJobs = Object.entries(jobs).sort((a, b) => {
+        const dateA = new Date(a[1]?.UpdatedAt || 0);
+        const dateB = new Date(b[1]?.UpdatedAt || 0);
+        return dateB - dateA;
+    });
+    
+    sortedJobs.forEach(([jobId, status]) => {
         // Status kontrolünü iyileştir
         const jobStatus = status?.Status || 'Unknown';
         const jobMessage = status?.Message || 'İşlem başlatıldı...';
@@ -109,11 +117,16 @@ function updateJobList(jobs) {
                              jobStatus === 'Queued' ? 'Kuyrukta' :
                              jobStatus === 'Failed' ? 'Başarısız' : jobStatus;
         
+        // Job türüne göre başlık
+        const jobTitle = jobMessage.includes('Hafta') ? 
+                        `Hafta ${jobMessage.match(/Hafta (\d+)/)?.[1] || '?'} Yorum Toplama` :
+                        `İşlem #${index + 1}`;
+        
         html += `
             <div class="job-item border rounded p-3 mb-3 ${jobStatus === 'Running' ? 'border-primary' : ''}">
                 <div class="row">
                     <div class="col-md-8">
-                        <h5><i class="fas fa-cog ${jobStatus === 'Running' ? 'fa-spin' : ''}"></i> İşlem #${index + 1}</h5>
+                        <h5><i class="fas fa-cog ${jobStatus === 'Running' ? 'fa-spin' : ''}"></i> ${jobTitle}</h5>
                         <p class="mb-1"><strong>Durum:</strong> ${detailedMessage}</p>
                         <p class="mb-1"><strong>Job ID:</strong> <code>${jobId.substring(0, 12)}...</code></p>
                         <small class="text-muted"><i class="fas fa-clock"></i> Son Güncelleme: ${formattedDate}</small>
@@ -171,14 +184,10 @@ function cancelJob(jobId) {
         return;
     }
     
-    // Anti-forgery token'ı al
-    const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-    
     fetch('/Admin/CancelJob', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'RequestVerificationToken': token
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({ jobId: jobId })
     })
@@ -255,19 +264,22 @@ function startManualJob() {
         fetch('/Admin/StartHaftaYorumToplama', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({ hafta: parseInt(hafta) })
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Job başlatıldı: ' + data.jobId);
+                alert('✅ Job başlatıldı: ' + data.jobId);
                 refreshJobs();
             } else {
-                alert('Hata: ' + data.message);
+                alert('❌ Hata: ' + data.message);
             }
+        })
+        .catch(error => {
+            console.error('Hata:', error);
+            alert('❌ Bir hata oluştu!');
         });
     }
 }
@@ -284,15 +296,14 @@ function startTestJob() {
     fetch('/Admin/StartHaftaYorumToplama', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({ hafta: 1 })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('✅ Job başlatıldı: ' + data.jobId);
+            alert('✅ Test Job başlatıldı: ' + data.jobId);
             refreshJobs();
         } else {
             alert('❌ Hata: ' + data.message);

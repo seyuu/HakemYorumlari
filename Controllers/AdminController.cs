@@ -755,7 +755,6 @@ namespace HakemYorumlari.Controllers
         }
         
         [HttpPost]
-        [ValidateAntiForgeryToken]
         public async Task<IActionResult> CancelJob([FromBody] CancelJobRequest request)
         {
             try
