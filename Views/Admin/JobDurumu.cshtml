@@ -58,9 +58,19 @@ function updateJobList(jobs) {
     let html = '';
     let index = 0;
     Object.entries(jobs).forEach(([jobId, status]) => {
-        const jobStatus = status.Status || 'Unknown';
-        const jobMessage = status.Message || 'İşlem başlatıldı...';
-        const jobProgress = status.Progress || 0;
+        // Status kontrolünü iyileştir
+        const jobStatus = status?.Status || 'Unknown';
+        const jobMessage = status?.Message || 'İşlem başlatıldı...';
+        const jobProgress = status?.Progress || 0;
+        
+        // Debug için console log ekle
+        console.log('Job Status Debug:', {
+            jobId: jobId,
+            status: status,
+            jobStatus: jobStatus,
+            jobMessage: jobMessage,
+            jobProgress: jobProgress
+        });
         
         // Daha detaylı durum mesajları
         const detailedMessage = getDetailedMessage(jobStatus, jobMessage, jobProgress);
@@ -69,11 +79,13 @@ function updateJobList(jobs) {
         const progressText = jobProgress > 0 ? `${jobProgress}%` : 
                         (jobStatus === 'Running' ? 'İşleniyor...' : 
                          jobStatus === 'Queued' ? 'Sırada bekliyor...' : 
-                         jobStatus === 'Completed' ? 'Tamamlandı' : 'Bilinmiyor');
+                         jobStatus === 'Completed' ? 'Tamamlandı' : 
+                         jobStatus === 'Failed' ? 'Başarısız' :
+                         jobStatus === 'Cancelled' ? 'İptal Edildi' : 'Bilinmiyor');
         
         // Tarih formatı
         let formattedDate = 'Bilinmiyor';
-        if (status.UpdatedAt) {
+        if (status?.UpdatedAt) {
             try {
                 const date = new Date(status.UpdatedAt);
                 if (!isNaN(date.getTime())) {
@@ -155,31 +167,72 @@ function getDetailedMessage(status, message, progress) {
 }
 
 function cancelJob(jobId) {
-    if (confirm('Bu işlemi iptal etmek istediğinizden emin misiniz?')) {
-        // Anti-forgery token ekle
-        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-        
-        fetch('/Admin/CancelJob', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'RequestVerificationToken': token
-            },
-            body: JSON.stringify({ jobId: jobId })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                refreshJobs();
-            } else {
-                alert('İşlem iptal edilemedi!');
-            }
-        })
-        .catch(error => {
-            console.error('Hata:', error);
-            alert('Bir hata oluştu!');
-        });
+    if (!confirm('Bu işlemi iptal etmek istediğinizden emin misiniz?')) {
+        return;
     }
+    
+    // Anti-forgery token'ı al
+    const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+    
+    fetch('/Admin/CancelJob', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'RequestVerificationToken': token
+        },
+        body: JSON.stringify({ jobId: jobId })
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        }
+        throw new Error('İptal işlemi başarısız');
+    })
+    .then(data => {
+        if (data.success) {
+            // Başarılı iptal
+            refreshJobs();
+            // Başarı mesajı göster
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle"></i> İşlem başarıyla iptal edildi.
+                <button type="button" class="close" data-dismiss="alert">
+                    <span>&times;</span>
+                </button>
+            `;
+            document.querySelector('.card-body').insertBefore(alertDiv, document.getElementById('jobList'));
+            
+            // 3 saniye sonra mesajı kaldır
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.parentNode.removeChild(alertDiv);
+                }
+            }, 3000);
+        } else {
+            throw new Error(data.message || 'İptal işlemi başarısız');
+        }
+    })
+    .catch(error => {
+        console.error('İptal hatası:', error);
+        // Hata mesajı göster
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+        alertDiv.innerHTML = `
+            <i class="fas fa-exclamation-triangle"></i> İptal işlemi başarısız: ${error.message}
+            <button type="button" class="close" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        `;
+        document.querySelector('.card-body').insertBefore(alertDiv, document.getElementById('jobList'));
+        
+        // 5 saniye sonra mesajı kaldır
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.parentNode.removeChild(alertDiv);
+            }
+        }, 5000);
+    });
 }
 
 // Auto refresh every 2 seconds (daha sık güncelleme)

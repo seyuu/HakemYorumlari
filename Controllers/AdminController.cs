@@ -756,17 +756,32 @@ namespace HakemYorumlari.Controllers
         
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult CancelJob([FromBody] CancelJobRequest request)
+        public async Task<IActionResult> CancelJob([FromBody] CancelJobRequest request)
         {
             try
             {
-                var result = _backgroundJobService.CancelJob(request.JobId);
-                return Json(new { success = result, message = result ? "İşlem iptal edildi" : "İşlem iptal edilemedi" });
+                if (string.IsNullOrEmpty(request.JobId))
+                {
+                    return Json(new { success = false, message = "Job ID gerekli" });
+                }
+                
+                var success = _backgroundJobService.CancelJob(request.JobId);
+                
+                if (success)
+                {
+                    _logger.LogInformation("Job iptal edildi: {JobId}", request.JobId);
+                    return Json(new { success = true, message = "İşlem başarıyla iptal edildi" });
+                }
+                else
+                {
+                    _logger.LogWarning("Job iptal edilemedi: {JobId}", request.JobId);
+                    return Json(new { success = false, message = "İşlem iptal edilemedi veya zaten tamamlanmış" });
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "CancelJob hatası: {JobId}", request.JobId);
-                return Json(new { success = false, message = "Bir hata oluştu" });
+                _logger.LogError(ex, "Job iptal edilirken hata oluştu: {JobId}", request.JobId);
+                return Json(new { success = false, message = "İptal işlemi sırasında hata oluştu" });
             }
         }
         
