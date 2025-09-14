@@ -29,8 +29,32 @@ builder.Configuration["AllowedHosts"] = "*";
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
-// --- DÜZELTİLEN BÖLÜM BAŞLANGICI ---
-// Data Protection'ı Google Cloud Storage kullanacak şekilde yapılandır
+// --- GOOGLE CREDENTIALS KONTROLÜ ---
+var credentialsPath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
+if (string.IsNullOrEmpty(credentialsPath))
+{
+    // Cloud Run'da yaygın path'leri dene
+    var possiblePaths = new[]
+    {
+        "/workspace/hakemyorumlama-2bf8fa35cf41.json",
+        "/app/hakemyorumlama-2bf8fa35cf41.json",
+        "./hakemyorumlama-2bf8fa35cf41.json",
+        "hakemyorumlama-2bf8fa35cf41.json"
+    };
+    
+    foreach (var path in possiblePaths)
+    {
+        if (File.Exists(path))
+        {
+            Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", path);
+            builder.Logging.Services.BuildServiceProvider().GetService<ILogger<Program>>()?.
+                LogInformation("Google credentials bulundu: {Path}", path);
+            break;
+        }
+    }
+}
+
+// --- DATA PROTECTION YAPILANDIRMASI ---
 try
 {
     var bucketName = "hakemyorumlari-dataprotection-keys";
@@ -47,10 +71,13 @@ try
 catch (Exception ex)
 {
     var logger = builder.Services.BuildServiceProvider().GetService<ILogger<Program>>();
-    logger?.LogCritical("Data Protection yapılandırılamadı. Hata: {ErrorMessage}", ex.Message);
-    throw new InvalidOperationException("Data Protection yapılandırması başarısız oldu.", ex);
+    logger?.LogWarning(ex, "Data Protection yapılandırılamadı, varsayılan ayarlar kullanılacak. Hata: {ErrorMessage}", ex.Message);
+    // Production'da hata fırlatmak yerine warning log'la
+    if (builder.Environment.IsProduction())
+    {
+        logger?.LogCritical("Data Protection production'da başarısız oldu!");
+    }
 }
-// --- DÜZELTİLEN BÖLÜM SONU ---
 
 
 // HttpClient servisleri (Mevcut yapılandırmanız korunmuştur)
