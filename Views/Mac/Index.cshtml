@@ -28,7 +28,7 @@
                                 
                                 <div class="text-center">
                                     <h5 class="mb-0">
-                                        @ViewBag.SecilenHafta. Hafta
+                                        @(ViewBag.SecilenHafta). Hafta
                                         @if ((int)ViewBag.SecilenHafta == (int)ViewBag.AktifHafta)
                                         {
                                             <span class="badge bg-success ms-2">Aktif</span>
@@ -86,7 +86,7 @@
                             <div class="col-md-6 col-lg-4 mb-3">
                                 <div class="card h-100 @(mac.Hafta == (int)ViewBag.AktifHafta ? "border-success" : "")">
                                     <div class="card-header @(mac.Hafta == (int)ViewBag.AktifHafta ? "bg-success text-white" : "bg-light")">
-                                        <small>@mac.Liga - @mac.Hafta. Hafta</small>
+                                        <small>@mac.Liga - @(mac.Hafta). Hafta</small>
                                         @if (mac.YorumlarToplandi)
                                         {
                                             <span class="badge bg-info ms-2">Yorumlar Toplandı</span>

@@ -33,7 +33,7 @@
                             <p class="lead mb-3">@Model.Aciklama</p>
                             <div class="mb-3">
                                 <small class="text-muted">
-                                    📅 @Model.Mac.MacTarihi.ToString("dd.MM.yyyy HH:mm") - @Model.Mac.Liga (@Model.Mac.Hafta. Hafta)
+                                    📅 @Model.Mac.MacTarihi.ToString("dd.MM.yyyy HH:mm") - @Model.Mac.Liga (@(Model.Mac.Hafta). Hafta)
                                 </small>
                             </div>
                             @if (!string.IsNullOrEmpty(Model.VideoUrl))
