@@ -31,8 +31,7 @@ COPY --from=build /app/out .
 
 # Google credentials dosyasını kopyala (eğer build time'da mevcutsa)
 # Not: Production'da Secret Manager veya Environment Variable kullanmak daha güvenli
-COPY hakemyorumlama-*.json /app/
-COPY google-credentials.json /app/
+# Bu dosyalar Cloud Build'de Secret Manager'dan gelecek
 
 # Environment variables
 ENV ASPNETCORE_ENVIRONMENT=Production
