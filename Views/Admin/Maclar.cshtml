@@ -80,7 +80,7 @@
                                 @foreach (var hafta in ViewBag.TumHaftalar)
                                 {
                                     <option value="@hafta" @(hafta == ViewBag.SecilenHafta ? "selected" : "")>
-                                        @hafta. Hafta @(hafta == ViewBag.MevcutHafta ? "(Mevcut)" : "")
+                                        @(hafta). Hafta @(hafta == ViewBag.MevcutHafta ? "(Mevcut)" : "")
                                     </option>
                                 }
                             </select>
