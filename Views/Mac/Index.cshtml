@@ -62,7 +62,7 @@
                                     @foreach (var haftaNum in (List<int>)ViewBag.Haftalar)
                                     {
                                         <option value="@haftaNum" selected="@(haftaNum == (int)ViewBag.SecilenHafta)">
-                                            @haftaNum. Hafta
+                                            @(haftaNum). Hafta
                                             @if (haftaNum == (int)ViewBag.AktifHafta)
                                             {
                                                 <text> (Aktif)</text>
