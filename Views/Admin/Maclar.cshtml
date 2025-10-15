@@ -79,7 +79,7 @@
                             <select id="haftaSecici" class="form-select" onchange="haftaSecildi()">
                                 @foreach (var hafta in ViewBag.TumHaftalar)
                                 {
-                                    <option value="@(hafta)" @(hafta == ViewBag.SecilenHafta ? "selected" : "")>
+                                    <option value="@(hafta)" selected="@(hafta == ViewBag.SecilenHafta)">
                                         @(hafta). Hafta @(hafta == ViewBag.MevcutHafta ? "(Mevcut)" : "")
                                     </option>
                                 }

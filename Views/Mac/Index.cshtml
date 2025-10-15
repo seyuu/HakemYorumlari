@@ -61,7 +61,7 @@
                                 <select name="hafta" class="form-select" onchange="this.form.submit()">
                                     @foreach (var haftaNum in (List<int>)ViewBag.Haftalar)
                                     {
-                                        <option value="@haftaNum" selected="@(haftaNum == (int)ViewBag.SecilenHafta)">
+                                        <option value="@(haftaNum)" selected="@(haftaNum == (int)ViewBag.SecilenHafta)">
                                             @(haftaNum). Hafta
                                             @if (haftaNum == (int)ViewBag.AktifHafta)
                                             {
