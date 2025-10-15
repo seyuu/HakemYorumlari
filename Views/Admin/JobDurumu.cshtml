@@ -1,0 +1,300 @@
+@{
+    ViewData["Title"] = "Job Durumu Takibi";
+}
+
+@* Anti-forgery token ekle *@
+@Html.AntiForgeryToken()
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Aktif İşlemler</h3>
+                    <button class="btn btn-primary btn-sm float-right" onclick="refreshJobs()">Yenile</button>
+                </div>
+                <div class="card-body">
+                    <div id="jobList">
+                        <!-- Jobs will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let lastJobCount = 0;
+
+function refreshJobs() {
+    fetch('/Admin/Api/JobStatus')
+        .then(response => response.json())
+        .then(data => {
+            updateJobList(data);
+            
+            // Job tamamlandığında ses çal
+            const currentJobCount = Object.keys(data || {}).length;
+            if (currentJobCount < lastJobCount) {
+                // Job tamamlandı, ses çal
+                playNotificationSound();
+            }
+            lastJobCount = currentJobCount;
+        });
+}
+
+function playNotificationSound() {
+    // Basit beep sesi
+    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
+    audio.play().catch(() => {});
+}
+function updateJobList(jobs) {
+    const jobList = document.getElementById('jobList');
+    
+    if (!jobs || Object.keys(jobs).length === 0) {
+        jobList.innerHTML = '<div class="alert alert-info"><i class="fas fa-info-circle"></i> Şu anda aktif işlem yok.</div>';
+        return;
+    }
+    
+    let html = '';
+    let index = 0;
+    
+    // Job'ları tarihe göre sırala (en yeni önce)
+    const sortedJobs = Object.entries(jobs).sort((a, b) => {
+        const dateA = new Date(a[1]?.UpdatedAt || 0);
+        const dateB = new Date(b[1]?.UpdatedAt || 0);
+        return dateB - dateA;
+    });
+    
+    sortedJobs.forEach(([jobId, status]) => {
+        // Status, Message, Progress ve UpdatedAt için hem PascalCase hem camelCase’e bak
+        const jobStatus = (status?.Status ?? status?.status) || 'Unknown';
+        const jobMessage = (status?.Message ?? status?.message) || 'İşlem başlatıldı...';
+        const jobProgress = (status?.Progress ?? status?.progress) || 0;
+
+        // Tarih formatı
+        let formattedDate = 'Bilinmiyor';
+        const updatedAtRaw = status?.UpdatedAt ?? status?.updatedAt;
+        if (updatedAtRaw) {
+            try {
+                const date = new Date(updatedAtRaw);
+                if (!isNaN(date.getTime())) {
+                    formattedDate = date.toLocaleString('tr-TR');
+                }
+            } catch (e) {
+                formattedDate = 'Tarih hatası';
+            }
+        }
+        
+        const progressClass = (jobStatus === 'Running') ? 'progress-bar-animated progress-bar-striped' : '';
+        const statusClass = jobStatus === 'Running' ? 'badge-primary' : 
+                           jobStatus === 'Completed' ? 'badge-success' : 
+                           jobStatus === 'Cancelled' ? 'badge-warning' :
+                           jobStatus === 'Queued' ? 'badge-info' :
+                           jobStatus === 'Failed' ? 'badge-danger' : 'badge-secondary';
+        
+        const statusDisplay = jobStatus === 'Running' ? 'Çalışıyor' :
+                             jobStatus === 'Completed' ? 'Tamamlandı' :
+                             jobStatus === 'Cancelled' ? 'İptal Edildi' :
+                             jobStatus === 'Queued' ? 'Kuyrukta' :
+                             jobStatus === 'Failed' ? 'Başarısız' : jobStatus;
+        
+        // Job türüne göre başlık
+        const jobTitle = jobMessage.includes('Hafta') ? 
+                        `Hafta ${jobMessage.match(/Hafta (\d+)/)?.[1] || '?'} Yorum Toplama` :
+                        `İşlem #${index + 1}`;
+        
+        html += `
+            <div class="job-item border rounded p-3 mb-3 ${jobStatus === 'Running' ? 'border-primary' : ''}">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h5><i class="fas fa-cog ${jobStatus === 'Running' ? 'fa-spin' : ''}"></i> ${jobTitle}</h5>
+                        <p class="mb-1"><strong>Durum:</strong> ${detailedMessage}</p>
+                        <p class="mb-1"><strong>Job ID:</strong> <code>${jobId.substring(0, 12)}...</code></p>
+                        <small class="text-muted"><i class="fas fa-clock"></i> Son Güncelleme: ${formattedDate}</small>
+                    </div>
+                    <div class="col-md-4 text-right">
+                        <span class="badge ${statusClass} mb-2">${statusDisplay}</span>
+                        <div class="progress mb-2" style="height: 25px;">
+                            <div class="progress-bar ${progressClass}" style="width: ${jobProgress > 0 ? jobProgress : (jobStatus === 'Completed' ? 100 : (jobStatus === 'Running' ? 15 : 0))}%">
+                                ${progressText}
+                            </div>
+                        </div>
+                        ${(jobStatus === 'Running' || jobStatus === 'Queued') ? 
+                            `<button class="btn btn-sm btn-danger" onclick="cancelJob('${jobId}')">
+                                <i class="fas fa-stop"></i> İptal Et
+                            </button>` : 
+                            (jobStatus === 'Completed' ? 
+                                `<button class="btn btn-sm btn-outline-secondary" disabled>
+                                    <i class="fas fa-check"></i> Tamamlandı
+                                </button>` : 
+                                `<button class="btn btn-sm btn-outline-secondary" disabled>
+                                    <i class="fas fa-info"></i> ${statusDisplay}
+                                </button>`
+                            )
+                        }
+                    </div>
+                </div>
+            </div>
+        `;
+        index++;
+    });
+    jobList.innerHTML = html;
+}
+
+function getDetailedMessage(status, message, progress) {
+    if (status === 'Running') {
+        if (message.includes('İşlenen:')) {
+            return message; // Zaten detaylı
+        }
+        return progress > 0 ? `İşlem devam ediyor... (${progress}%)` : 'İşlem başlatıldı, lütfen bekleyin...';
+    }
+    if (status === 'Queued') {
+        return 'İşlem sıraya alındı, yakında başlayacak...';
+    }
+    if (status === 'Completed') {
+        return 'İşlem başarıyla tamamlandı!';
+    }
+    if (status === 'Failed') {
+        return `İşlem başarısız: ${message}`;
+    }
+    return message || 'Durum bilinmiyor';
+}
+
+function cancelJob(jobId) {
+    if (!confirm('Bu işlemi iptal etmek istediğinizden emin misiniz?')) {
+        return;
+    }
+    
+    fetch('/Admin/CancelJob', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            // Anti-Forgery token header’ını ekle
+            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+        },
+        body: JSON.stringify({ jobId: jobId })
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        }
+        throw new Error('İptal işlemi başarısız');
+    })
+    .then(data => {
+        if (data.success) {
+            // Başarılı iptal
+            refreshJobs();
+            // Başarı mesajı göster
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle"></i> İşlem başarıyla iptal edildi.
+                <button type="button" class="close" data-dismiss="alert">
+                    <span>&times;</span>
+                </button>
+            `;
+            document.querySelector('.card-body').insertBefore(alertDiv, document.getElementById('jobList'));
+            
+            // 3 saniye sonra mesajı kaldır
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.parentNode.removeChild(alertDiv);
+                }
+            }, 3000);
+        } else {
+            throw new Error(data.message || 'İptal işlemi başarısız');
+        }
+    })
+    .catch(error => {
+        console.error('İptal hatası:', error);
+        // Hata mesajı göster
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger alert-dismissible fade show';
+        alertDiv.innerHTML = `
+            <i class="fas fa-exclamation-triangle"></i> İptal işlemi başarısız: ${error.message}
+            <button type="button" class="close" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        `;
+        document.querySelector('.card-body').insertBefore(alertDiv, document.getElementById('jobList'));
+        
+        // 5 saniye sonra mesajı kaldır
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.parentNode.removeChild(alertDiv);
+            }
+        }, 5000);
+    });
+}
+
+// Auto refresh every 2 seconds (daha sık güncelleme)
+setInterval(refreshJobs, 2000);
+
+// Initial load
+refreshJobs();
+</script>
+
+<div class="mb-3">
+    <button type="button" class="btn btn-primary" onclick="startManualJob()">
+        <i class="fas fa-play"></i> Manuel Job Başlat
+    </button>
+</div>
+
+<script>
+function startManualJob() {
+    const hafta = prompt('Hangi hafta için job başlatılsın?', '1');
+    if (hafta) {
+        fetch('/Admin/StartHaftaYorumToplama', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ hafta: parseInt(hafta) })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ Job başlatıldı: ' + data.jobId);
+                refreshJobs();
+            } else {
+                alert('❌ Hata: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Hata:', error);
+            alert('❌ Bir hata oluştu!');
+        });
+    }
+}
+</script>
+
+<div class="mb-3">
+    <button type="button" class="btn btn-success" onclick="startTestJob()">
+        <i class="fas fa-play"></i> Test Job Başlat (Hafta 1)
+    </button>
+</div>
+
+<script>
+function startTestJob() {
+    fetch('/Admin/StartHaftaYorumToplama', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ hafta: 1 })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ Test Job başlatıldı: ' + data.jobId);
+            refreshJobs();
+        } else {
+            alert('❌ Hata: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Hata:', error);
+        alert('❌ Bir hata oluştu!');
+    });
+}
+</script>

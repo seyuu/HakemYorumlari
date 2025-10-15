@@ -1,0 +1,94 @@
+namespace HakemYorumlari.Helpers
+{
+    public static class HaftaHelper
+    {
+        /// <summary>
+        /// Verilen tarihe göre Süper Lig'deki mevcut haftayı hesaplar
+        /// </summary>
+        /// <param name="tarih">Hafta hesaplanacak tarih</param>
+        /// <returns>Hafta numarası (1-38 arası)</returns>
+        public static int GetCurrentWeek(DateTime tarih)
+        {
+            // Süper Lig 2024-2025 sezonu başlangıcı
+            // TFF resmi takvimine göre ayarlanmalıdır
+            var sezonBaslangic = new DateTime(2024, 8, 9); // 9 Ağustos 2024 Cuma
+            
+            // Sezon başlamadıysa 1. haftayı döndür
+            if (tarih < sezonBaslangic)
+                return 1;
+            
+            // Geçen gün sayısını hesapla
+            var gecenGunler = (tarih.Date - sezonBaslangic.Date).Days;
+            
+            // Hafta hesaplaması (7 günde bir hafta)
+            var hafta = (gecenGunler / 7) + 1;
+            
+            // Minimum 1, maksimum 38 hafta olacak şekilde sınırla
+            return Math.Min(Math.Max(hafta, 1), 38);
+        }
+
+        /// <summary>
+        /// Belirli bir haftanın başlangıç ve bitiş tarihlerini hesaplar
+        /// </summary>
+        /// <param name="hafta">Hafta numarası</param>
+        /// <returns>Başlangıç ve bitiş tarihleri</returns>
+        public static (DateTime BaslangicTarihi, DateTime BitisTarihi) GetWeekDateRange(int hafta)
+        {
+            var sezonBaslangic = new DateTime(2024, 8, 9);
+            
+            // Haftanın başlangıcı (Cuma)
+            var baslangic = sezonBaslangic.AddDays((hafta - 1) * 7);
+            
+            // Haftanın bitişi (Pazartesi gece yarısı)
+            var bitis = baslangic.AddDays(4).Date.AddDays(1).AddSeconds(-1); // Pazartesi geceyarısına kadar
+            
+            return (baslangic, bitis);
+        }
+
+        /// <summary>
+        /// Mevcut haftanın maçlarının oynandığı tarihleri döndürür
+        /// </summary>
+        /// <param name="hafta">Hafta numarası</param>
+        /// <returns>Cuma, Cumartesi, Pazar, Pazartesi günleri</returns>
+        public static List<DateTime> GetMatchDaysForWeek(int hafta)
+        {
+            var (baslangic, _) = GetWeekDateRange(hafta);
+            
+            return new List<DateTime>
+            {
+                baslangic,                    // Cuma
+                baslangic.AddDays(1),        // Cumartesi  
+                baslangic.AddDays(2),        // Pazar
+                baslangic.AddDays(3)         // Pazartesi
+            };
+        }
+
+        /// <summary>
+        /// Sezonun tamamlanma yüzdesini hesaplar
+        /// </summary>
+        /// <param name="mevcutHafta">Mevcut hafta</param>
+        /// <returns>Tamamlanma yüzdesi</returns>
+        public static double GetSeasonCompletionPercentage(int mevcutHafta)
+        {
+            const int toplamHafta = 38;
+            return (mevcutHafta / (double)toplamHafta) * 100;
+        }
+
+        /// <summary>
+        /// Sezon durumunu belirler
+        /// </summary>
+        /// <param name="mevcutHafta">Mevcut hafta</param>
+        /// <returns>Sezon durumu açıklaması</returns>
+        public static string GetSeasonStatus(int mevcutHafta)
+        {
+            return mevcutHafta switch
+            {
+                <= 10 => "Sezon Başı",
+                <= 19 => "İlk Yarı",
+                <= 28 => "İkinci Yarı",
+                <= 34 => "Sezon Sonu Yaklaşıyor",
+                _ => "Sezon Finali"
+            };
+        }
+    }
+}

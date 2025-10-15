@@ -1,0 +1,93 @@
+@model IEnumerable<Pozisyon>
+
+@{
+    ViewData["Title"] = "Tartışmalı Pozisyonlar";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4><i class="fas fa-video"></i> Tartışmalı Pozisyonlar</h4>
+                </div>
+                <div class="card-body">
+                    @foreach (var pozisyon in Model)
+                    {
+                        var dogruOylar = pozisyon.KullaniciAnketleri.Count(x => x.DogruKarar);
+                        var yanlisOylar = pozisyon.KullaniciAnketleri.Count(x => !x.DogruKarar);
+                        var toplamOy = dogruOylar + yanlisOylar;
+                        var dogruYuzde = toplamOy > 0 ? (dogruOylar * 100.0 / toplamOy) : 0;
+                        var yanlisYuzde = toplamOy > 0 ? (yanlisOylar * 100.0 / toplamOy) : 0;
+
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <h5 class="mb-1">@pozisyon.Mac.EvSahibi vs @pozisyon.Mac.Deplasman</h5>
+                                        <small class="text-muted">@pozisyon.Dakika. dakika - @pozisyon.PozisyonTuru</small>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <a asp-action="Details" asp-route-id="@pozisyon.Id" class="btn btn-success btn-sm">
+                                            <i class="fas fa-eye"></i> Detayları Gör ve Oyver
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-3"><strong>@pozisyon.Aciklama</strong></p>
+                                
+                                <!-- Oylama Sonuçları -->
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <span class="text-success">Doğru: @dogruOylar (@dogruYuzde.ToString("F1")%)</span>
+                                        <span class="text-danger">Yanlış: @yanlisOylar (@yanlisYuzde.ToString("F1")%)</span>
+                                    </div>
+                                    <div class="progress mb-2">
+                                        <div class="progress-bar bg-success" style="width: @dogruYuzde%"></div>
+                                        <div class="progress-bar bg-danger" style="width: @yanlisYuzde%"></div>
+                                    </div>
+                                    <small class="text-muted">Toplam @toplamOy oy</small>
+                                </div>
+
+                                <!-- Hakem Yorumları -->
+                                @if (pozisyon.HakemYorumlari.Any())
+                                {
+                                    <div class="mt-3">
+                                        <h6 class="mb-3"><i class="fas fa-comments"></i> Hakem Yorumcularının Görüşleri:</h6>
+                                        @foreach (var yorum in pozisyon.HakemYorumlari.OrderBy(y => y.YorumTarihi))
+                                        {
+                                            <div class="border-start border-3 @(yorum.DogruKarar ? "border-success" : "border-danger") ps-3 mb-3">
+                                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                                    <div>
+                                                        <strong>@yorum.YorumcuAdi</strong>
+                                                        @if (!string.IsNullOrEmpty(yorum.Kanal))
+                                                        {
+                                                            <small class="text-muted">(@yorum.Kanal)</small>
+                                                        }
+                                                    </div>
+                                                    <span class="badge @(yorum.DogruKarar ? "bg-success" : "bg-danger") fs-6">
+                                                        @(yorum.DogruKarar ? "✅ Doğru" : "❌ Yanlış")
+                                                    </span>
+                                                </div>
+                                                <p class="mb-0 text-muted small">"@yorum.Yorum"</p>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    @if (!Model.Any())
+                    {
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle"></i> Henüz tartışmalı pozisyon bulunmamaktadır.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

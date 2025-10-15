@@ -1,0 +1,167 @@
+@model Pozisyon
+@{
+    ViewData["Title"] = "Yeni Pozisyon Ekle";
+    Layout = "_Layout";
+}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4><i class="fas fa-plus"></i> Yeni Pozisyon Ekle</h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Create" method="post" id="pozisyonForm">
+                        <input type="hidden" asp-for="MacId" value="@ViewBag.MacId" />
+                        <input type="hidden" name="MacId" value="@ViewBag.MacId" />
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="Dakika" class="form-label">Dakika</label>
+                                    <input asp-for="Dakika" class="form-control" type="number" min="1" max="120" />
+                                    <span asp-validation-for="Dakika" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="PozisyonTuru" class="form-label">Pozisyon Türü</label>
+                                    <select asp-for="PozisyonTuru" class="form-select">
+                                        <option value="Penaltı">Penaltı</option>
+                                        <option value="Kırmızı Kart">Kırmızı Kart</option>
+                                        <option value="Sarı Kart">Sarı Kart</option>
+                                        <option value="Ofsayt">Ofsayt</option>
+                                        <option value="Gol">Gol</option>
+                                        <option value="Faul">Faul</option>
+                                        <option value="Diğer">Diğer</option>
+                                    </select>
+                                    <span asp-validation-for="PozisyonTuru" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Aciklama" class="form-label">Açıklama</label>
+                            <textarea asp-for="Aciklama" class="form-control" rows="3" placeholder="Pozisyon detayını açıklayın..."></textarea>
+                            <span asp-validation-for="Aciklama" class="text-danger"></span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="HakemKarari" class="form-label">Hakem Kararı</label>
+                                    <select asp-for="HakemKarari" class="form-select">
+                                        <option value="Doğru">Doğru</option>
+                                        <option value="Yanlış">Yanlış</option>
+                                        <option value="Tartışmalı">Tartışmalı</option>
+                                    </select>
+                                    <span asp-validation-for="HakemKarari" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="TartismaDerecesi" class="form-label">Tartışma Derecesi (1-10)</label>
+                                    <input asp-for="TartismaDerecesi" type="number" min="1" max="10" class="form-control" value="5" />
+                                    <span asp-validation-for="TartismaDerecesi" class="text-danger"></span>
+                                    <small class="form-text text-muted">1: Çok az tartışma, 10: Çok fazla tartışma</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="VideoUrl" class="form-label">Video URL</label>
+                                    <input asp-for="VideoUrl" class="form-control" placeholder="https://..." />
+                                    <span asp-validation-for="VideoUrl" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="VideoKaynagi" class="form-label">Video Kaynağı</label>
+                                    <select asp-for="VideoKaynagi" class="form-select">
+                                        <option value="YouTube">YouTube</option>
+                                        <option value="BeIN Sports">BeIN Sports</option>
+                                        <option value="TRT Spor">TRT Spor</option>
+                                        <option value="Diğer">Diğer</option>
+                                    </select>
+                                    <span asp-validation-for="VideoKaynagi" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Geri Dön
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Kaydet
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        $(document).ready(function() {
+            // Form submit işlemi
+            $('#pozisyonForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                // MacId kontrolü
+                var macId = $('input[name="MacId"]').val();
+                if (!macId || macId <= 0) {
+                    alert('Maç ID bulunamadı. Lütfen sayfayı yenileyin.');
+                    return;
+                }
+                
+                // Form verilerini al
+                var formData = $(this).serialize();
+                
+                // Debug için console log
+                console.log('Form Data:', formData);
+                console.log('MacId:', macId);
+                
+                // AJAX ile submit et
+                $.ajax({
+                    url: '@Url.Action("Create", "Pozisyon")',
+                    type: 'POST',
+                    data: formData,
+                    success: function(result) {
+                        if (result.success) {
+                            // Başarılı - yönlendir
+                            window.location.href = result.redirectUrl || '@Url.Action("Details", "Mac", new { id = ViewBag.MacId })';
+                        } else {
+                            // Hata - formu tekrar göster
+                            alert('Pozisyon eklenirken hata oluştu: ' + result.message);
+                        }
+                    },
+                    error: function() {
+                        alert('Bir hata oluştu. Lütfen tekrar deneyin.');
+                    }
+                });
+            });
+            
+            // Tartışma derecesi için range slider
+            $('#TartismaDerecesi').on('input', function() {
+                var value = $(this).val();
+                $(this).next('.form-text').text(value + ': ' + getTartismaText(value));
+            });
+            
+            function getTartismaText(value) {
+                if (value <= 2) return 'Çok az tartışma';
+                if (value <= 4) return 'Az tartışma';
+                if (value <= 6) return 'Orta tartışma';
+                if (value <= 8) return 'Fazla tartışma';
+                return 'Çok fazla tartışma';
+            }
+        });
+    </script>
+}

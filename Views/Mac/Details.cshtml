@@ -1,0 +1,163 @@
+@model HakemYorumlari.Models.Mac
+@{
+    ViewData["Title"] = "Maç Detayları";
+}
+
+<div class="fade-in">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0">⚽ @Model.EvSahibi vs @Model.Deplasman</h2>
+                    <div>
+                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary me-2">
+                            ✏️ Düzenle
+                        </a>
+                        <a asp-action="Index" class="btn btn-secondary">
+                            ← Geri Dön
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h3 class="match-score mb-3">
+                                @Model.EvSahibi vs @Model.Deplasman
+                                @if (!string.IsNullOrEmpty(Model.Skor))
+                                {
+                                    <span class="badge bg-success ms-2 fs-5">@Model.Skor</span>
+                                }
+                            </h3>
+                            <div class="mb-3">
+                                <strong>📅 Tarih:</strong> @Model.MacTarihi.ToString("dd.MM.yyyy HH:mm")
+                            </div>
+                            <div class="mb-3">
+                                <strong>🏆 Liga:</strong> @Model.Liga
+                            </div>
+                            <div class="mb-3">
+                                <strong>📊 Hafta:</strong> @Model.Hafta. Hafta
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5>📊 İstatistikler</h5>
+                                    <div class="row">
+                                        <div class="col-4">
+                                            <h4 class="text-warning">@Model.Pozisyonlar.Count</h4>
+                                            <small>Pozisyon</small>
+                                        </div>
+                                        <div class="col-4">
+                                            <h4 class="text-info">@Model.Pozisyonlar.Sum(p => p.HakemYorumlari.Count)</h4>
+                                            <small>Yorum</small>
+                                        </div>
+                                        <div class="col-4">
+                                            <h4 class="text-success">@Model.Pozisyonlar.Sum(p => p.KullaniciAnketleri.Count)</h4>
+                                            <small>Oy</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pozisyonlar -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">🎯 Tartışmalı Pozisyonlar</h3>
+                    <a asp-controller="Pozisyon" asp-action="Create" asp-route-macId="@Model.Id" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Pozisyon Ekle
+                    </a>
+                </div>
+                <div class="card-body">
+                    @if (Model.Pozisyonlar.Any())
+                    {
+                        @foreach (var pozisyon in Model.Pozisyonlar.OrderBy(p => p.Dakika))
+                        {
+                            <div class="position-item mb-4">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <span class="position-time">@pozisyon.Dakika'</span>
+                                        @if (!string.IsNullOrEmpty(pozisyon.PozisyonTuru))
+                                        {
+                                            <span class="position-type">@pozisyon.PozisyonTuru</span>
+                                        }
+                                    </div>
+                                    <div>
+                                        <span class="badge bg-info text-dark me-2">
+                                            💬 @pozisyon.HakemYorumlari.Count Yorum
+                                        </span>
+                                        <span class="badge bg-warning text-dark">
+                                            🗳️ @pozisyon.KullaniciAnketleri.Count Oy
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <p class="mb-3">@pozisyon.Aciklama</p>
+                                
+                                @if (!string.IsNullOrEmpty(pozisyon.VideoUrl))
+                                {
+                                    <div class="mb-3">
+                                        <a href="@pozisyon.VideoUrl" target="_blank" class="btn btn-outline-primary btn-sm">
+                                            🎥 Videoyu İzle
+                                        </a>
+                                    </div>
+                                }
+
+                                <!-- Hakem Yorumları Özeti -->
+                                @if (pozisyon.HakemYorumlari.Any())
+                                {
+                                    <div class="mb-3">
+                                        <h6>👨‍⚖️ Hakem Yorumları:</h6>
+                                        @foreach (var yorum in pozisyon.HakemYorumlari.Take(2))
+                                        {
+                                            <div class="referee-comment mb-2">
+                                                <strong>@yorum.YorumcuAdi (@yorum.Kanal):</strong>
+                                                <span class="badge @(yorum.DogruKarar ? "bg-success" : "bg-danger") ms-2">
+                                                    @(yorum.DogruKarar ? "✅ Doğru" : "❌ Yanlış")
+                                                </span>
+                                                <p class="mb-0 mt-1">@yorum.Yorum</p>
+                                            </div>
+                                        }
+                                        @if (pozisyon.HakemYorumlari.Count > 2)
+                                        {
+                                            <small class="text-muted">ve @(pozisyon.HakemYorumlari.Count - 2) yorum daha...</small>
+                                        }
+                                    </div>
+                                }
+
+                                <div class="d-flex gap-2">
+                                    <a asp-controller="Pozisyon" asp-action="Details" asp-route-id="@pozisyon.Id" class="btn btn-primary btn-sm">
+                                        👁️ Detaylar & Oy Ver
+                                    </a>
+                                    <a asp-controller="Pozisyon" asp-action="Edit" asp-route-id="@pozisyon.Id" class="btn btn-outline-secondary btn-sm">
+                                        ✏️ Düzenle
+                                    </a>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <div class="mb-4">
+                                <i class="fas fa-search fa-4x text-muted"></i>
+                            </div>
+                            <h5 class="text-muted">Bu maçta henüz tartışmalı pozisyon bulunmuyor</h5>
+                            <p class="text-muted mb-4">İlk pozisyonu eklemek için aşağıdaki butona tıklayın.</p>
+                            <a asp-controller="Pozisyon" asp-action="Create" asp-route-macId="@Model.Id" class="btn btn-success">
+                                <i class="fas fa-plus"></i> İlk Pozisyonu Ekle
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

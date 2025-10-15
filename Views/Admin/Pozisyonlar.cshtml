@@ -1,0 +1,86 @@
+@model IEnumerable<Pozisyon>
+@{
+    ViewData["Title"] = "Pozisyon Yönetimi";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h4><i class="fas fa-video"></i> Pozisyon Yönetimi</h4>
+                    <a asp-action="PozisyonEkle" class="btn btn-light">
+                        <i class="fas fa-plus"></i> Yeni Pozisyon Ekle
+                    </a>
+                </div>
+                <div class="card-body">
+                    @if (TempData["Success"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            @TempData["Success"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Maç</th>
+                                    <th>Dakika</th>
+                                    <th>Açıklama</th>
+                                    <th>Pozisyon Türü</th>
+                                    <th>Video</th>
+                                    <th>İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model)
+                                {
+                                    <tr>
+                                        <td>@item.Id</td>
+                                        <td>@item.Mac.EvSahibi vs @item.Mac.Deplasman</td>
+                                        <td>@item.Dakika'</td>
+                                        <td>
+                                            <div class="text-truncate" style="max-width: 200px;" title="@item.Aciklama">
+                                                @item.Aciklama
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">@item.PozisyonTuru</span>
+                                        </td>
+                                        <td>
+                                            <a href="@item.VideoUrl" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-play"></i> İzle
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <a asp-action="PozisyonDuzenle" asp-route-id="@item.Id" class="btn btn-warning btn-sm">
+                                                <i class="fas fa-edit"></i> Düzenle
+                                            </a>
+                                            <form asp-action="PozisyonSil" method="post" style="display:inline;" onsubmit="return confirm('Bu pozisyonu silmek istediğinizden emin misiniz?')">
+                                                <input type="hidden" name="id" value="@item.Id" />
+                                                <button type="submit" class="btn btn-danger btn-sm">
+                                                    <i class="fas fa-trash"></i> Sil
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (!Model.Any())
+                    {
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle"></i> Henüz pozisyon bulunmamaktadır.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

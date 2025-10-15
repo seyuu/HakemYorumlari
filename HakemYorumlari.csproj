@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  
+    <!-- Publish Configuration -->
+    <SelfContained>false</SelfContained>
+    <UseAppHost>true</UseAppHost>
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishSingleFile>false</PublishSingleFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Cloud.AspNetCore.DataProtection.Storage" Version="1.0.0-alpha04" />
+    <PackageReference Include="Google.Cloud.SecretManager.V1" Version="2.6.0" />
+    <PackageReference Include="Google.Cloud.Storage.V1" Version="4.13.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="8.0.0" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.59" />
+    <PackageReference Include="Humanizer.Core" Version="2.14.1" />
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.70.0.3847" />
+    <PackageReference Include="Google.Apis.Auth" Version="1.70.0" />
+    <!-- Mevcut paketlere ekle -->
+    <PackageReference Include="Google.Cloud.Speech.V1" Version="3.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.8.0" />
+    <PackageReference Include="System.Text.Json" Version="8.0.0" />
+  </ItemGroup>
+
+  <!-- JSON credentials dosyası kaldırıldı - Cloud Run'da environment variable kullanılacak -->
+
+</Project>

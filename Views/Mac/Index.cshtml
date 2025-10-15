@@ -1,0 +1,134 @@
+@model IEnumerable<Mac>
+
+@{
+    ViewData["Title"] = "Maçlar";
+    Layout = "_Layout";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4><i class="fas fa-futbol"></i> Maç Listesi</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Hafta Navigasyonu -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="d-flex justify-content-center align-items-center">
+                                @{
+                                    var oncekiHafta = (int)ViewBag.SecilenHafta - 1;
+                                    var sonrakiHafta = (int)ViewBag.SecilenHafta + 1;
+                                }
+                                <a href="?hafta=@oncekiHafta&liga=@ViewBag.SecilenLiga" 
+                                   class="btn btn-outline-success me-3 @((int)ViewBag.SecilenHafta <= 1 ? "disabled" : "")">
+                                    <i class="fas fa-chevron-left"></i> Önceki Hafta
+                                </a>
+                                
+                                <div class="text-center">
+                                    <h5 class="mb-0">
+                                        @ViewBag.SecilenHafta. Hafta
+                                        @if ((int)ViewBag.SecilenHafta == (int)ViewBag.AktifHafta)
+                                        {
+                                            <span class="badge bg-success ms-2">Aktif</span>
+                                        }
+                                    </h5>
+                                </div>
+                                
+                                <a href="?hafta=@sonrakiHafta&liga=@ViewBag.SecilenLiga" 
+                                   class="btn btn-outline-success ms-3 @((int)ViewBag.SecilenHafta >= 38 ? "disabled" : "")">
+                                    Sonraki Hafta <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filtreleme Formu -->
+                    <form method="get" class="mb-4">
+                        <input type="hidden" name="hafta" value="@ViewBag.SecilenHafta" />
+                        <div class="row">
+                            <div class="col-md-3">
+                                <select name="liga" class="form-select" onchange="this.form.submit()">
+                                    <option value="">Tüm Ligler</option>
+                                    @foreach (var liga in (List<string>)ViewBag.Ligalar)
+                                    {
+                                        <option value="@liga" selected="@(liga == (string)ViewBag.SecilenLiga)">@liga</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="hafta" class="form-select" onchange="this.form.submit()">
+                                    @foreach (var haftaNum in (List<int>)ViewBag.Haftalar)
+                                    {
+                                        <option value="@haftaNum" selected="@(haftaNum == (int)ViewBag.SecilenHafta)">
+                                            @haftaNum. Hafta
+                                            @if (haftaNum == (int)ViewBag.AktifHafta)
+                                            {
+                                                <text> (Aktif)</text>
+                                            }
+                                        </option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="?hafta=@ViewBag.AktifHafta&liga=@ViewBag.SecilenLiga" class="btn btn-success">
+                                    <i class="fas fa-home"></i> Aktif Haftaya Dön
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Maç Listesi -->
+                    <div class="row">
+                        @foreach (var mac in Model)
+                        {
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100 @(mac.Hafta == (int)ViewBag.AktifHafta ? "border-success" : "")">
+                                    <div class="card-header @(mac.Hafta == (int)ViewBag.AktifHafta ? "bg-success text-white" : "bg-light")">
+                                        <small>@mac.Liga - @mac.Hafta. Hafta</small>
+                                        @if (mac.YorumlarToplandi)
+                                        {
+                                            <span class="badge bg-info ms-2">Yorumlar Toplandı</span>
+                                        }
+                                    </div>
+                                    <div class="card-body">
+                                        <h6 class="card-title text-center">
+                                            @mac.EvSahibi vs @mac.Deplasman
+                                        </h6>
+                                        <p class="text-center">
+                                            <strong>@mac.Skor</strong>
+                                        </p>
+                                        <p class="text-center text-muted">
+                                            <small>@mac.MacTarihi.ToString("dd.MM.yyyy HH:mm")</small>
+                                        </p>
+                                        @if (mac.Pozisyonlar.Any())
+                                        {
+                                            <p class="text-center">
+                                                <small class="text-success">
+                                                    <i class="fas fa-video"></i> @mac.Pozisyonlar.Count pozisyon
+                                                </small>
+                                            </p>
+                                        }
+                                    </div>
+                                    <div class="card-footer">
+                                        <a asp-action="Details" asp-route-id="@mac.Id" class="btn btn-success btn-sm w-100">
+                                            <i class="fas fa-eye"></i> Detayları Gör
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    @if (!Model.Any())
+                    {
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle"></i> Bu hafta için maç bulunmamaktadır.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

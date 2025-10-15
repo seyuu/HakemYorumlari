@@ -1,0 +1,267 @@
+@model HakemYorumlari.Models.Pozisyon
+@{
+    ViewData["Title"] = "Pozisyon Detayları";
+}
+
+<div class="fade-in">
+    <!-- Pozisyon Bilgileri -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0">🎯 Pozisyon Detayları</h2>
+                    <div>
+                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary me-2">
+                            ✏️ Düzenle
+                        </a>
+                        <a asp-controller="Mac" asp-action="Details" asp-route-id="@Model.MacId" class="btn btn-secondary">
+                            ← Maça Dön
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h4 class="mb-3">
+                                ⚽ @Model.Mac.EvSahibi vs @Model.Mac.Deplasman
+                                <span class="position-time ms-2">@Model.Dakika'</span>
+                                @if (!string.IsNullOrEmpty(Model.PozisyonTuru))
+                                {
+                                    <span class="position-type ms-2">@Model.PozisyonTuru</span>
+                                }
+                            </h4>
+                            <p class="lead mb-3">@Model.Aciklama</p>
+                            <div class="mb-3">
+                                <small class="text-muted">
+                                    📅 @Model.Mac.MacTarihi.ToString("dd.MM.yyyy HH:mm") - @Model.Mac.Liga (@Model.Mac.Hafta. Hafta)
+                                </small>
+                            </div>
+                            @if (!string.IsNullOrEmpty(Model.VideoUrl))
+                            {
+                                <div class="mb-3">
+                                    <a href="@Model.VideoUrl" target="_blank" class="btn btn-outline-primary">
+                                        🎥 Pozisyon Videosunu İzle
+                                    </a>
+                                </div>
+                            }
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5>📊 Anket Sonuçları</h5>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <h4 class="text-success">@ViewBag.DogruOylar</h4>
+                                            <small>Doğru</small>
+                                        </div>
+                                        <div class="col-6">
+                                            <h4 class="text-danger">@ViewBag.YanlisOylar</h4>
+                                            <small>Yanlış</small>
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <p class="mb-0"><strong>Toplam: @ViewBag.ToplamOy oy</strong></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kullanıcı Anketi -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">🗳️ Sizce Bu Karar Doğru mu?</h3>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.KullaniciOyVermiş == true)
+                    {
+                        <div class="user-vote">
+                            <h5>✅ Oyunuz Kaydedildi!</h5>
+                            <p class="mb-3">
+                                Sizin oyunuz: 
+                                <strong class="@(ViewBag.KullaniciOyu == true ? "text-success" : "text-danger")">
+                                    @(ViewBag.KullaniciOyu == true ? "✅ Doğru" : "❌ Yanlış")
+                                </strong>
+                            </p>
+                            <p class="text-muted mb-3">Oyunuzu değiştirmek isterseniz tekrar oy verebilirsiniz.</p>
+                            
+                            <form asp-action="Vote" method="post" class="d-inline">
+                                <input type="hidden" name="pozisyonId" value="@Model.Id" />
+                                <div class="vote-buttons">
+                                    <button type="submit" name="dogruKarar" value="true" class="vote-btn vote-correct">
+                                        ✅ Doğru Karar
+                                    </button>
+                                    <button type="submit" name="dogruKarar" value="false" class="vote-btn vote-incorrect">
+                                        ❌ Yanlış Karar
+                                    </button>
+                                </div>
+                                @Html.AntiForgeryToken()
+                            </form>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="user-vote">
+                            <h5>Bu pozisyon için hakem kararı doğru muydu?</h5>
+                            <p class="text-muted mb-4">Aşağıdaki butonlardan birine tıklayarak oyunuzu verin.</p>
+                            
+                            <form asp-action="Vote" method="post" class="d-inline">
+                                <input type="hidden" name="pozisyonId" value="@Model.Id" />
+                                <div class="vote-buttons">
+                                    <button type="submit" name="dogruKarar" value="true" class="vote-btn vote-correct">
+                                        ✅ Doğru Karar
+                                    </button>
+                                    <button type="submit" name="dogruKarar" value="false" class="vote-btn vote-incorrect">
+                                        ❌ Yanlış Karar
+                                    </button>
+                                </div>
+                                @Html.AntiForgeryToken()
+                            </form>
+                        </div>
+                    }
+
+                    <!-- Sonuç Grafikleri -->
+                    @if (ViewBag.ToplamOy > 0)
+                    {
+                        <div class="vote-results">
+                            <h6>📊 Anket Sonuçları (@ViewBag.ToplamOy oy)</h6>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>✅ Doğru (@ViewBag.DogruOylar oy)</span>
+                                    <span>@ViewBag.DogruYuzde.ToString("F1")%</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: @ViewBag.DogruYuzde%" aria-valuenow="@ViewBag.DogruYuzde" aria-valuemin="0" aria-valuemax="100">
+                                        @ViewBag.DogruYuzde.ToString("F1")%
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span>❌ Yanlış (@ViewBag.YanlisOylar oy)</span>
+                                    <span>@ViewBag.YanlisYuzde.ToString("F1")%</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar bg-danger" role="progressbar" style="width: @ViewBag.YanlisYuzde%" aria-valuenow="@ViewBag.YanlisYuzde" aria-valuemin="0" aria-valuemax="100">
+                                        @ViewBag.YanlisYuzde.ToString("F1")%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hakem Yorumları -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">👨‍⚖️ Hakem Yorumcularının Görüşleri</h3>
+                    <a asp-controller="HakemYorumu" asp-action="Create" asp-route-pozisyonId="@Model.Id" class="btn btn-success">
+                        <i class="fas fa-plus"></i> Yorum Ekle
+                    </a>
+                </div>
+                <div class="card-body">
+                    @if (Model.HakemYorumlari.Any())
+                    {
+                        @foreach (var yorum in Model.HakemYorumlari.OrderByDescending(y => y.YorumTarihi))
+                        {
+                            <div class="referee-comment mb-4">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <h6 class="mb-1">
+                                            <strong>@yorum.YorumcuAdi</strong>
+                                            @if (!string.IsNullOrEmpty(yorum.Kanal))
+                                            {
+                                                <small class="text-muted">(@yorum.Kanal)</small>
+                                            }
+                                        </h6>
+                                        <small class="text-muted">@yorum.YorumTarihi.ToString("dd.MM.yyyy HH:mm")</small>
+                                    </div>
+                                    <div>
+                                        <span class="badge @(yorum.DogruKarar ? "bg-success" : "bg-danger") fs-6">
+                                            @(yorum.DogruKarar ? "✅ Doğru" : "❌ Yanlış")
+                                        </span>
+                                    </div>
+                                </div>
+                                <p class="mb-2">@yorum.Yorum</p>
+                                <div class="d-flex gap-2">
+                                    <a asp-controller="HakemYorumu" asp-action="Edit" asp-route-id="@yorum.Id" class="btn btn-outline-secondary btn-sm">
+                                        ✏️ Düzenle
+                                    </a>
+                                    <a asp-controller="HakemYorumu" asp-action="Delete" asp-route-id="@yorum.Id" class="btn btn-outline-danger btn-sm">
+                                        🗑️ Sil
+                                    </a>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <div class="mb-4">
+                                <i class="fas fa-comments fa-4x text-muted"></i>
+                            </div>
+                            <h5 class="text-muted">Henüz hakem yorumu bulunmuyor</h5>
+                            <p class="text-muted mb-4">İlk yorumu eklemek için aşağıdaki butona tıklayın.</p>
+                            <a asp-controller="HakemYorumu" asp-action="Create" asp-route-pozisyonId="@Model.Id" class="btn btn-success">
+                                <i class="fas fa-plus"></i> İlk Yorumu Ekle
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Oy verme butonlarına tıklandığında loading göster
+        document.querySelectorAll('.vote-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                this.innerHTML = '<span class="loading"></span> Kaydediliyor...';
+                this.disabled = true;
+            });
+        });
+    </script>
+}
+
+<!-- Video bölümüne embed player ekle -->
+@if (!string.IsNullOrEmpty(Model.EmbedVideoUrl))
+{
+    <div class="video-container mb-4">
+        <h5>Pozisyon Videosu</h5>
+        <div class="embed-responsive embed-responsive-16by9">
+            <iframe class="embed-responsive-item" src="@Model.EmbedVideoUrl" allowfullscreen></iframe>
+        </div>
+        <small class="text-muted">Kaynak: @Model.VideoKaynagi</small>
+    </div>
+}
+
+<!-- Hakem yorumlarında kaynak linkleri -->
+@foreach (var yorum in Model.HakemYorumlari)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <h6 class="card-title">@yorum.YorumcuAdi</h6>
+            <p class="card-text">@yorum.Yorum</p>
+            @if (!string.IsNullOrEmpty(yorum.KaynakLink))
+            {
+                <a href="@yorum.KaynakLink" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-external-link-alt"></i> 
+                    @(yorum.KaynakTuru == "YouTube" ? "YouTube'da İzle" : 
+                      yorum.KaynakTuru == "Gazete" ? "Haberi Oku" : "Web Sitesinde Gör")
+                </a>
+            }
+        </div>
+    </div>
+}

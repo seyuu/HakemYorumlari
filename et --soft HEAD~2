@@ -1,0 +1,5 @@
+[33mc3ce920[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m Add OAuth client secret files to .gitignore for security
+[33m24eed32[m Update OAuth2 configuration for new project and remove API key dependency
+[33m851992f[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Implement Typed HttpClient for YouTube API with automatic API key injection
+[33mf6134ad[m Simplify Dockerfile publish command to use project file settings
+[33m5f0ac68[m Fix publish configuration for Cloud Run deployment

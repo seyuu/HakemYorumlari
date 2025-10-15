@@ -1,0 +1,15 @@
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb
+*.log
+hakemyorumlama-2bf8fa35cf41.json
+.vs/
+*.vsidx
+*.vspscc
+*.vssscc
+*.scc

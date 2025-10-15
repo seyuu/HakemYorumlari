@@ -1,0 +1,90 @@
+@model Mac
+@{
+    ViewData["Title"] = "Yeni Maç Ekle";
+    Layout = "_Layout";
+}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4><i class="fas fa-plus"></i> Yeni Maç Ekle</h4>
+                </div>
+                <div class="card-body">
+                    <form asp-action="MacEkle" method="post">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="EvSahibi" class="form-label">Ev Sahibi Takım</label>
+                                    <input asp-for="EvSahibi" class="form-control" placeholder="Ev sahibi takım adı" />
+                                    <span asp-validation-for="EvSahibi" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="Deplasman" class="form-label">Deplasman Takımı</label>
+                                    <input asp-for="Deplasman" class="form-control" placeholder="Deplasman takım adı" />
+                                    <span asp-validation-for="Deplasman" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="Skor" class="form-label">Skor</label>
+                                    <input asp-for="Skor" class="form-control" placeholder="Örn: 2-1" />
+                                    <span asp-validation-for="Skor" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="MacTarihi" class="form-label">Maç Tarihi</label>
+                                    <input asp-for="MacTarihi" type="datetime-local" class="form-control" />
+                                    <span asp-validation-for="MacTarihi" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="Liga" class="form-label">Lig</label>
+                                    <select asp-for="Liga" class="form-select">
+                                        <option value="">Lig Seçiniz</option>
+                                        <option value="Süper Lig">Süper Lig</option>
+                                        <option value="1. Lig">1. Lig</option>
+                                        <option value="2. Lig">2. Lig</option>
+                                        <option value="3. Lig">3. Lig</option>
+                                    </select>
+                                    <span asp-validation-for="Liga" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="Hafta" class="form-label">Hafta</label>
+                                    <input asp-for="Hafta" type="number" min="1" max="38" class="form-control" />
+                                    <span asp-validation-for="Hafta" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a asp-action="Maclar" class="btn btn-secondary me-md-2">
+                                <i class="fas fa-arrow-left"></i> Geri Dön
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> Kaydet
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
